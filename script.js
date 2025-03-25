@@ -8,6 +8,9 @@ console.log("Script.js loading...");
 import * as THREE from 'three';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+// Import our bridge for connecting to global scope
+import gameBridge from './bridge.js';
+
 // Log that THREE was imported
 console.log("THREE imported:", typeof THREE);
 
@@ -2092,6 +2095,9 @@ function setGameState(state) {
     updateBackgroundMusic();
 }
 
+// Register the setGameState function with the bridge
+gameBridge.registerSetGameState(setGameState);
+
 // Restart the game
 function restartGame() {
     console.log("Restarting game. Initial building count:", buildings.length);
@@ -2137,6 +2143,9 @@ function restartGame() {
     
     console.log("Game restart complete. Building count after restart:", buildings.length);
 }
+
+// Register the restartGame function with the bridge
+gameBridge.registerRestartGame(restartGame);
 
 // Set up event listeners for player controls and UI
 function setupEventListeners() {

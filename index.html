@@ -9,7 +9,8 @@
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/",
+                "./bridge.js": "./bridge.js"
             }
         }
     </script>
@@ -704,6 +705,49 @@
         setTimeout(function() {
             document.getElementById('loading').style.display = 'none';
         }, 5000);
+        
+        // Create a global bridge function that the module can connect to
+        window.gameControl = {
+            startGame: null,  // Will be filled by the module
+            pauseGame: null,
+            resumeGame: null,
+            restartGame: null
+        };
+        
+        // Make start button work with direct click handler
+        document.getElementById('start-button').addEventListener('click', function() {
+            console.log("Start button clicked via direct event listener");
+            // Try to start the game using the bridge
+            if (window.gameControl && window.gameControl.startGame) {
+                window.gameControl.startGame();
+            } else {
+                console.log("Game start function not available yet");
+                // At least hide the start screen to show something happened
+                document.getElementById('start-screen').style.display = 'none';
+            }
+        });
+        
+        // Make resume button work with direct click handler
+        document.getElementById('resume-button').addEventListener('click', function() {
+            console.log("Resume button clicked via direct event listener");
+            if (window.gameControl && window.gameControl.resumeGame) {
+                window.gameControl.resumeGame();
+            } else {
+                console.log("Resume function not available yet");
+                document.getElementById('pause-screen').style.display = 'none';
+            }
+        });
+        
+        // Make restart button work with direct click handler
+        document.getElementById('restart-button').addEventListener('click', function() {
+            console.log("Restart button clicked via direct event listener");
+            if (window.gameControl && window.gameControl.restartGame) {
+                window.gameControl.restartGame();
+            } else {
+                console.log("Restart function not available yet");
+                document.getElementById('game-over-screen').style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html> 
