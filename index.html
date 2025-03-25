@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X-Machina: Aurora Prime Explorer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="script.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            color: #00ffff;
+            background-color: #000033; /* Dark background in case of loading issues */
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #000033;
+            color: #00ffff;
+            z-index: 1000;
+        }
+        
+        #loading h1 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        
+        #loading .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(0, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #00ffff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #game {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        #score-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            color: #00ffff;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 8px 16px;
+            border-radius: 5px;
+            border: 1px solid #00ffff;
+            z-index: 10;
+        }
+        
+        #health-bar-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            height: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ffff;
+            border-radius: 5px;
+            z-index: 10;
+        }
+        
+        #health-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #00ff00;
+            border-radius: 4px;
+            transition: width 0.3s ease-out;
+        }
+        
+        .game-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 33, 0.8);
+            color: #00ffff;
+            z-index: 100;
+            display: none;
+        }
+        
+        .game-screen h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        
+        .game-screen p {
+            font-size: 1.5em;
+            margin-bottom: 30px;
+        }
+        
+        .game-screen button {
+            padding: 10px 20px;
+            font-size: 1.2em;
+            background-color: #00ffff;
+            color: #000033;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .game-screen button:hover {
+            background-color: #ffffff;
+            transform: scale(1.1);
+        }
+        
+        #quote-display {
+            position: fixed;
+            bottom: 60px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: #00ffff;
+            font-style: italic;
+            text-shadow: 0 0 5px #00ffff;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        #debug-panel {
+            position: fixed;
+            top: 50px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #00ff00;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            border-radius: 5px;
+            z-index: 100;
+            max-width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #00ff00;
+            display: none;
+        }
+        
+        #controls-display {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 16px;
+            color: #00ffff;
+            background-color: rgba(0, 0, 33, 0.5);
+            padding: 8px 0;
+            z-index: 10;
+            display: none; /* Hide the bottom controls since we'll show them on the left */
+        }
+        
+        #left-controls-panel {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 33, 0.8);
+            color: #00ffff;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #00ffff;
+            font-family: monospace;
+            font-size: 16px;
+            z-index: 100;
+            width: 200px;
+            text-align: left;
+        }
+        
+        #left-controls-panel h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #ffffff;
+            text-align: center;
+            border-bottom: 1px solid #00ffff;
+            padding-bottom: 5px;
+        }
+        
+        #left-controls-panel .control-item {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        #left-controls-panel .key {
+            background-color: rgba(0, 255, 255, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #00ffff;
+            margin-right: 8px;
+            font-weight: bold;
+        }
+        
+        #left-controls-panel .indicators {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #00ffff;
+        }
+        
+        #left-controls-panel .indicator-item {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        #left-controls-panel .indicator-value {
+            font-weight: bold;
+            color: #ffffff;
+        }
+        
+        /* Advanced flight indicators styles */
+        #flight-indicators {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background-color: rgba(0, 10, 30, 0.85);
+            border: 2px solid #00ccff;
+            border-radius: 6px;
+            box-shadow: 0 0 15px rgba(0, 204, 255, 0.5);
+            color: #00ffff;
+            padding: 10px;
+            width: 120px;
+            z-index: 100;
+            font-family: "Orbitron", sans-serif;
+            text-transform: uppercase;
+            backdrop-filter: blur(5px);
+            animation: panel-glow 4s infinite alternate;
+        }
+        
+        @keyframes panel-glow {
+            0% { box-shadow: 0 0 15px rgba(0, 204, 255, 0.5); }
+            100% { box-shadow: 0 0 25px rgba(0, 204, 255, 0.8); }
+        }
+        
+        #flight-indicators .indicator-label {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-bottom: 2px;
+            letter-spacing: 1px;
+            text-align: left;
+            color: #66ccff;
+        }
+        
+        #flight-indicators .indicator-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
+            margin-bottom: 6px;
+            text-align: right;
+            letter-spacing: 1px;
+        }
+        
+        #flight-indicators .units {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-left: 4px;
+            color: #66ccff;
+            font-weight: 400;
+            vertical-align: middle;
+        }
+        
+        #flight-indicators .separator {
+            height: 1px;
+            background: linear-gradient(to right, rgba(0, 204, 255, 0), rgba(0, 204, 255, 0.8), rgba(0, 204, 255, 0));
+            margin: 8px 0;
+        }
+        
+        .altitude-bar-container, .speed-bar-container {
+            width: 100%;
+            height: 4px;
+            background-color: rgba(0, 60, 100, 0.5);
+            border-radius: 2px;
+            margin-top: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .altitude-bar, .speed-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, #0066ff, #00ffff);
+            border-radius: 3px;
+            transition: width 0.3s ease-out;
+        }
+        
+        .altitude-bar::after, .speed-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to right, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0.4) 50%, 
+                transparent 100%);
+            animation: bar-shine 1.5s infinite;
+        }
+        
+        @keyframes bar-shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        #error-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: #ff0000;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #ff0000;
+            max-width: 80%;
+            max-height: 80%;
+            overflow: auto;
+            z-index: 2000;
+            display: none;
+            font-family: monospace;
+        }
+        
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 33, 0.8);
+            color: #00ffff;
+            z-index: 100;
+            background-image: linear-gradient(rgba(0, 0, 33, 0.8), rgba(0, 0, 33, 0.95));
+            background-size: cover;
+            background-position: center;
+        }
+        
+        #start-screen h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #00ffff;
+            letter-spacing: 2px;
+            text-align: center;
+            color: #00ffff;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+            }
+            to {
+                text-shadow: 0 0 20px #00ffff, 0 0 30px #00ffff, 0 0 40px #00ffff;
+            }
+        }
+        
+        #start-screen p {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ffff;
+            max-width: 800px;
+            text-align: center;
+            line-height: 1.4;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 1px;
+        }
+        
+        #start-screen .warning {
+            color: #ff3366;
+            text-shadow: 0 0 10px #ff3366;
+            font-weight: bold;
+        }
+        
+        #start-screen .data-fragments {
+            color: #00ffff;
+            text-shadow: 0 0 15px #00ffff;
+            font-weight: bold;
+        }
+        
+        #start-screen .unchipped {
+            color: #ffcc00;
+            text-shadow: 0 0 15px #ffcc00;
+            font-weight: bold;
+        }
+        
+        #start-screen .button-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        #start-screen button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            font-family: 'Orbitron', sans-serif;
+            background-color: #00ffff;
+            color: #000033;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+            border: 2px solid transparent;
+        }
+        
+        #start-screen button:hover {
+            background-color: #000033;
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+        
+        #start-screen .book-button {
+            background-color: #ff3366;
+            color: #000033;
+        }
+        
+        #start-screen .book-button:hover {
+            background-color: #000033;
+            color: #ff3366;
+            border: 2px solid #ff3366;
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+        }
+        
+        #start-screen #start-button {
+            animation: pulse 1.5s infinite alternate;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #start-screen #start-button:before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.3), transparent);
+            transform: rotate(45deg);
+            animation: shine 3s linear infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            }
+            100% {
+                box-shadow: 0 0 25px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.5);
+            }
+        }
+        
+        @keyframes shine {
+            0% {
+                left: -100%;
+                top: -100%;
+            }
+            100% {
+                left: 100%;
+                top: 100%;
+            }
+        }
+        
+        #x-machina-logo {
+            margin-bottom: 20px;
+            max-width: 90%;
+            height: auto;
+        }
+        
+        #game-over-screen .button-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        #game-over-screen button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            font-family: 'Orbitron', sans-serif;
+            background-color: #00ffff;
+            color: #000033;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+            border: 2px solid transparent;
+        }
+        
+        #game-over-screen button:hover {
+            background-color: #000033;
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+        
+        #game-over-screen .book-button {
+            background-color: #ff3366;
+            color: #000033;
+        }
+        
+        #game-over-screen .book-button:hover {
+            background-color: #000033;
+            color: #ff3366;
+            border: 2px solid #ff3366;
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <h1>Loading X-Machina</h1>
+        <div class="spinner"></div>
+        <p>Initializing quantum city grid...</p>
+    </div>
+    
+    <div id="error-display"></div>
+    
+    <canvas id="game"></canvas>
+    <div id="health-bar-container">
+        <div id="health-bar"></div>
+    </div>
+    <div id="score-display">Score: 0</div>
+    <div id="start-screen" class="game-screen">
+        <div id="x-machina-logo">
+            <h1>X-Machina: The Unchipped One</h1>
+        </div>
+        <p>WELCOME TO <span class="data-fragments">AURORA PRIME</span></p>
+        <p><span class="warning">X-MACHINA CONTROLS THE CITY</span></p>
+        <p><span class="warning">AVOID DRONES</span> OR <span class="warning">ELIMINATE</span></p>
+        <p>COLLECT <span class="data-fragments">COOL BLUE DATA FRAGMENTS</span></p>
+        <p>YOU ARE <span class="unchipped">THE UNCHIPPED ONE</span>, THE LAST PERFECT IN HUMANITY</p>
+        <div class="button-container">
+            <button id="start-button">START TO GAME</button>
+            <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank">
+                <button class="book-button">DISCOVER THE BOOK</button>
+            </a>
+        </div>
+    </div>
+    <div id="game-over-screen" class="game-screen">
+        <h1>Consciousness Transfer Complete</h1>
+        <p>Your journey through Aurora Prime has revealed new truths about the nature of consciousness.</p>
+        <p id="final-score">Data fragments collected: 0</p>
+        <div class="button-container">
+            <button id="restart-button">Begin New Exploration</button>
+            <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank">
+                <button class="book-button">DISCOVER THE BOOK</button>
+            </a>
+        </div>
+    </div>
+    
+    <div id="pause-screen" class="game-screen">
+        <h1>Simulation Paused</h1>
+        <p>Your consciousness link to Aurora Prime has been temporarily suspended.</p>
+        <div class="button-container">
+            <button id="resume-button">Resume Connection</button>
+            <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank">
+                <button class="book-button">DISCOVER THE BOOK</button>
+            </a>
+        </div>
+    </div>
+    
+    <div id="quote-display">
+        <span id="quote-text"></span>
+    </div>
+    <div id="debug-panel"></div>
+    <div id="controls-display">WASD: Move ship | V: Toggle camera view</div>
+    
+    <div id="left-controls-panel">
+        <h3>Controls</h3>
+        <div class="control-item">
+            <span class="key">W</span>
+            <span>Forward</span>
+        </div>
+        <div class="control-item">
+            <span class="key">A</span>
+            <span>Left</span>
+        </div>
+        <div class="control-item">
+            <span class="key">S</span>
+            <span>Backward</span>
+        </div>
+        <div class="control-item">
+            <span class="key">D</span>
+            <span>Right</span>
+        </div>
+        <div class="control-item">
+            <span class="key">Space</span>
+            <span>Move Up</span>
+        </div>
+        <div class="control-item">
+            <span class="key">Shift</span>
+            <span>Move Down</span>
+        </div>
+        <div class="control-item">
+            <span class="key">F</span>
+            <span>Fire</span>
+        </div>
+        <div class="control-item">
+            <span class="key">V</span>
+            <span>Toggle Camera View</span>
+        </div>
+        <div class="control-item">
+            <span class="key">C</span>
+            <span>Toggle Controls Panel</span>
+        </div>
+        <div class="control-item">
+            <span class="key">ESC</span>
+            <span>Pause Game</span>
+        </div>
+        
+        <div class="indicators">
+            <div class="indicator-item">
+                <span>Height:</span>
+                <span id="height-indicator" class="indicator-value">0 m</span>
+            </div>
+            <div class="indicator-item">
+                <span>Speed:</span>
+                <span id="speed-indicator" class="indicator-value">0 km/h</span>
+            </div>
+        </div>
+    </div>
+    
+    <div id="flight-indicators">
+        <div class="indicator-item">
+            <div class="indicator-label">Altitude</div>
+            <div id="altitude-indicator" class="indicator-value">0<span class="units">ft</span></div>
+            <div class="altitude-bar-container">
+                <div id="altitude-bar" class="altitude-bar"></div>
+            </div>
+        </div>
+        <div class="separator"></div>
+        <div class="indicator-item">
+            <div class="indicator-label">Speed</div>
+            <div id="speed-indicator-advanced" class="indicator-value">0<span class="units">mph</span></div>
+            <div class="speed-bar-container">
+                <div id="speed-bar" class="speed-bar"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Add error handling for missing modules
+        window.addEventListener('error', function(e) {
+            console.error('Global error:', e.message);
+            document.getElementById('loading').style.display = 'none';
+            const errorDisplay = document.getElementById('error-display');
+            errorDisplay.style.display = 'block';
+            errorDisplay.innerHTML = `
+                <h2>Error Loading Game</h2>
+                <p>${e.message}</p>
+                <p>File: ${e.filename}</p>
+                <p>Line: ${e.lineno}</p>
+                <p>Try refreshing the page or check the console for more details.</p>
+            `;
+        });
+        
+        // Hide loading screen after 5 seconds maximum
+        setTimeout(function() {
+            document.getElementById('loading').style.display = 'none';
+        }, 5000);
+    </script>
+</body>
+</html> 
