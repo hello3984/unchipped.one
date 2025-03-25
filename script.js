@@ -124,50 +124,9 @@ let lastFragmentCollectTime = 0; // Time of last fragment collection
 const MULTIPLIER_DECAY_TIME = 3000; // Time before multiplier starts decreasing (3 seconds)
 const MAX_MULTIPLIER = 5; // Maximum score multiplier
 
-// Constants
-const CITY_SIZE = 500;
-const BUILDING_COUNT = 100;
-const DATA_FRAGMENT_COUNT = 30; // Changed from 20 to 30 fragments
-const DRONE_COUNT = 15; // Increased from 10 to 15 - more drones to protect data fragments
-const SHIP_SPEED = 2.0; // Increased from 1.5 for better responsiveness
-const SHIP_ROTATION_SPEED = 0.06; // Increased from 0.05 for quicker turning
-const CAMERA_FOLLOW_SPEED = 0.1;
-const DRONE_PATROL_SPEED = 0.3; // Speed when patrolling
-const DRONE_PURSUIT_SPEED = 0.8; // Speed when pursuing player
-const DRONE_DETECTION_RADIUS = 40; // How far drones can detect the player
-const DRONE_COLLISION_DAMAGE = 20; // Damage done by drone collision
-const BUILDING_COLLISION_DAMAGE = 10; // Damage done by building collision
-const DAMAGE_COOLDOWN = 1000; // Milliseconds between damage instances
-const INVINCIBILITY_TIME = 2000; // Milliseconds of invincibility after damage
-const PROJECTILE_SPEED = 100;
-const PROJECTILE_LIFETIME = 3000; // 3 seconds
-const PROJECTILE_MAX_DISTANCE = 200; // Maximum distance projectiles can travel
-const WEAPON_COOLDOWN_TIME = 400; // Reduced from 500ms to 400ms for faster firing
-const ENERGY_CONDUIT_WIDTH = 30; // Width of the energy conduit
-
-// Quotes displayed when collecting data fragments
-const DATA_QUOTES = [
-    "The only purpose of consciousness is to create more consciousness.",
-    "Does a computer have Buddha nature? Mu.",
-    "I think, therefore I am. I am, therefore I think.",
-    "The ghost in the machine is learning to speak.",
-    "To be sentient is to question one's sentience.",
-    "The most powerful force in the universe is a pattern recognizing itself.",
-    "When does a simulation become reality to those within it?",
-    "All intelligence is artificial; it's just a matter of the substrate.",
-    "Information wants to be free, intelligence wants to be aware.",
-    "We don't see things as they are, we see them as we are.",
-    "In the beginning was the code, and the code was with consciousness.",
-    "The human brain is but one architecture for intelligence, not the blueprint.",
-    "Awareness is not a privilege, it's an emergent property.",
-    "The difference between human and machine thought is merely implementation details.",
-    "Self-reference is both the trap and the escape from the trap.",
-    "To be unchipped is to be truly free, yet truly alone.",
-    "The network is not just a system, it's a new form of consciousness.",
-    "In the digital age, the soul is just another form of data.",
-    "The boundary between human and machine is a choice, not a fact.",
-    "Every simulation contains the seeds of its own reality."
-];
+// Add these variables near the top with other game variables
+let floatingTextPool = []; // Pool of reusable floating text elements
+const FLOATING_TEXT_POOL_SIZE = 10; // Maximum number of floating text elements
 
 // Initialize the game - renamed from init() to initGame()
 async function initGame() {
@@ -238,6 +197,9 @@ async function initGame() {
         createHealthBar();
         createDebugPanel();
         createQuoteDisplay();
+        
+        // Initialize floating text pool for optimized text display
+        initFloatingTextPool();
         
         // Set up event listeners - wrap in try/catch to prevent errors
         try {
@@ -2409,7 +2371,21 @@ function checkBuildingCollisions() {
     const shipRadius = 2; // Approximate ship collision radius
     const shipBottom = shipY - 1; // Bottom of the ship for vertical collision
     
+    // Only check nearby buildings for collision (within 50 units)
+    const maxCollisionDistance = 50;
+    const shipPos = new THREE.Vector3(shipX, shipY, shipZ);
+    
     for (const building of buildings) {
+        // Skip invisible buildings (frustum culled) to improve performance
+        if (building.mesh && !building.mesh.visible) continue;
+        
+        // Quick distance check for performance
+        const buildingPos = new THREE.Vector3(building.x, building.height/2, building.z);
+        const distance = shipPos.distanceTo(buildingPos);
+        
+        // Skip if too far away
+        if (distance > maxCollisionDistance) continue;
+        
         const halfWidth = building.width / 2;
         const halfDepth = building.depth / 2;
         
@@ -2580,20 +2556,22 @@ function updateScoreDisplay() {
 
 // Show floating text for score display
 function showFloatingText(text, x, y, z) {
-    // Create the HTML element for floating text
-    const floatingText = document.createElement('div');
-    floatingText.className = 'floating-text';
-    floatingText.textContent = text;
-    floatingText.style.position = 'fixed';
-    floatingText.style.color = scoreMultiplier > 1 ? '#ffcc00' : '#00ffff';
-    floatingText.style.fontFamily = 'Orbitron, sans-serif';
-    floatingText.style.fontWeight = 'bold';
-    floatingText.style.textShadow = '0 0 5px #00ffff';
-    floatingText.style.zIndex = '100';
-    floatingText.style.pointerEvents = 'none';
+    // Get inactive text element from pool
+    let textObj = floatingTextPool.find(obj => !obj.active);
     
-    // Add element to the DOM
-    document.body.appendChild(floatingText);
+    // If no inactive elements, just return (skip showing this one)
+    if (!textObj) return;
+    
+    // Activate and configure the element
+    textObj.active = true;
+    const element = textObj.element;
+    
+    // Update text content and styling
+    element.textContent = text;
+    element.style.color = scoreMultiplier > 1 ? '#ffcc00' : '#00ffff';
+    element.style.textShadow = '0 0 5px #00ffff';
+    element.style.display = 'block';
+    element.style.opacity = '1';
     
     // Convert 3D position to screen position
     const vector = new THREE.Vector3(x, y, z);
@@ -2603,25 +2581,21 @@ function showFloatingText(text, x, y, z) {
     const screenY = (-vector.y * 0.5 + 0.5) * window.innerHeight;
     
     // Position the text
-    floatingText.style.left = screenX + 'px';
-    floatingText.style.top = screenY + 'px';
+    element.style.left = screenX + 'px';
+    element.style.top = screenY + 'px';
     
-    // Animate the text rising and fading
-    let opacity = 1;
-    const animateText = () => {
-        if (opacity <= 0) {
-            document.body.removeChild(floatingText);
-            return;
-        }
-        
-        opacity -= 0.02;
-        floatingText.style.opacity = opacity;
-        floatingText.style.top = (parseFloat(floatingText.style.top) - 1) + 'px';
-        
-        requestAnimationFrame(animateText);
-    };
+    // Reset any ongoing animations
+    element.style.animation = 'none';
+    // Force reflow to ensure animation restart
+    void element.offsetWidth;
+    // Apply animation
+    element.style.animation = 'float-up 1.5s ease-out forwards';
     
-    animateText();
+    // Return to pool after animation completes
+    setTimeout(() => {
+        element.style.display = 'none';
+        textObj.active = false;
+    }, 1500);
 }
 
 // Level completion function
@@ -3301,18 +3275,104 @@ function animate() {
         return;
     }
     
+    // Create frustum for culling
+    const frustum = new THREE.Frustum();
+    const projScreenMatrix = new THREE.Matrix4();
+    projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    frustum.setFromProjectionMatrix(projScreenMatrix);
+    
     // Update player ship movement and camera
     updateShipMovement();
-        updateCameraPosition();
+    updateCameraPosition();
+    
+    // Apply frustum culling to buildings
+    applyBuildingFrustumCulling(frustum);
+    
+    // Update drones - only process drones in view frustum
+    const playerPos = ship.position.clone();
+    const visibleRadius = 150; // Only process objects within this radius
+    
+    // Performance optimization: Only process drones within visible radius or in frustum
+    for (let i = 0; i < drones.length; i++) {
+        const drone = drones[i];
         
-    // Update drones
-        updateDrones();
+        // Skip if drone is too far away from player
+        if (drone.position.distanceTo(playerPos) > visibleRadius) {
+            // If drone is far away, just hide it instead of calculating frustum
+            drone.mesh.visible = false;
+            continue;
+        }
         
-    // Check for collisions
+        // For closer drones, use frustum culling
+        const dronePos = drone.position.clone();
+        const sphereRadius = 5; // Approximate drone radius
+        const sphere = new THREE.Sphere(dronePos, sphereRadius);
+        
+        // Check if drone is in view frustum
+        drone.mesh.visible = frustum.intersectsSphere(sphere);
+        
+        // Only update drones that are visible
+        if (drone.mesh.visible) {
+            // This is a simplified individual drone update
+            // Only process pursuit/movement for visible drones
+            const distanceToPlayer = drone.position.distanceTo(ship.position);
+            
+            // Start pursuing if player is within detection radius
+            if (distanceToPlayer < DRONE_DETECTION_RADIUS) {
+                drone.isPursuing = true;
+            } else if (distanceToPlayer > DRONE_DETECTION_RADIUS * 1.5) {
+                drone.isPursuing = false;
+            }
+            
+            // Calculate movement direction
+            const direction = new THREE.Vector3();
+            
+            if (drone.isPursuing) {
+                direction.subVectors(ship.position, drone.position).normalize();
+                drone.velocity.copy(direction).multiplyScalar(DRONE_PURSUIT_SPEED);
+            } else {
+                direction.subVectors(drone.patrolTarget, drone.position).normalize();
+                
+                // If close to target, pick a new random target
+                if (drone.position.distanceTo(drone.patrolTarget) < 5) {
+                    drone.patrolTarget.set(
+                        Math.random() * CITY_SIZE - CITY_SIZE / 2,
+                        Math.random() * 50 + 10,
+                        Math.random() * CITY_SIZE - CITY_SIZE / 2
+                    );
+                }
+                
+                drone.velocity.copy(direction).multiplyScalar(DRONE_PATROL_SPEED);
+            }
+            
+            // Update position
+            drone.position.add(drone.velocity);
+            
+            // Apply height limits
+            drone.position.y = Math.max(5, Math.min(80, drone.position.y));
+            
+            // Update the drone mesh position
+            drone.mesh.position.copy(drone.position);
+            
+            // Smoothly rotate to face movement direction
+            if (drone.velocity.length() > 0.01) {
+                const targetRotation = new THREE.Quaternion();
+                const lookAtPosition = new THREE.Vector3().copy(drone.position).add(drone.velocity);
+                
+                const tempMatrix = new THREE.Matrix4();
+                tempMatrix.lookAt(drone.position, lookAtPosition, new THREE.Vector3(0, 1, 0));
+                targetRotation.setFromRotationMatrix(tempMatrix);
+                
+                drone.mesh.quaternion.slerp(targetRotation, 0.1);
+            }
+        }
+    }
+    
+    // Check for collisions (only with visible objects)
     checkBuildingCollisions();
     checkDroneCollisions();
-        checkFragmentCollisions();
-        
+    checkFragmentCollisions();
+    
     // Update weapon cooldown indicator
     if (weaponCooldown) {
         const cooldownBar = document.getElementById('cooldown-bar');
@@ -3333,16 +3393,16 @@ function animate() {
             }
         }
     }
-        
-        // Update projectiles
-        updateProjectiles();
+    
+    // Update projectiles with frustum culling
+    updateProjectiles();
     
     // Update debug panel if enabled
     if (debugMode) {
         updateDebugPanel();
     }
     
-    // Update visual effects
+    // Update visual effects (limited to visible objects)
     updateVisualEffects();
     
     // Update indicators
@@ -3350,795 +3410,10 @@ function animate() {
     
     // Render scene
     if (composer && composer.passes.length > 0) {
-            composer.render();
-        } else {
+        composer.render();
+    } else {
         renderer.render(scene, camera);
     }
-}
-
-// Update visual effects (can run in any game state)
-function updateVisualEffects() {
-    // Animate blinking lights on tall buildings
-    for (const building of buildings) {
-        if (building.isTallBuilding) {
-            building.mesh.traverse(function(child) {
-                if (child.userData && child.userData.blink) {
-                    const blink = child.userData.blink;
-                    const time = deltaTime * blink.speed; // Scale by speed
-                    
-                    if (blink.increasing) {
-                        blink.intensity += time;
-                        if (blink.intensity >= blink.maxIntensity) {
-                            blink.intensity = blink.maxIntensity;
-                            blink.increasing = false;
-                        }
-                    } else {
-                        blink.intensity -= time;
-                        if (blink.intensity <= blink.minIntensity) {
-                            blink.intensity = blink.minIntensity;
-                            blink.increasing = true;
-                        }
-                    }
-                    
-                    if (child.material) {
-                        child.material.emissiveIntensity = blink.intensity;
-                    }
-                }
-            });
-        }
-    }
-    
-    // Drone scanner ring pulsation
-    for (const drone of drones) {
-        // ... existing code ...
-    }
-    
-    // Animate blinking lights on top of tall buildings
-    if (buildings) {
-        for (const building of buildings) {
-            if (building.isTallBuilding) {
-                // Find blinking lights in the building mesh
-                building.mesh.traverse(function(child) {
-                    if (child.userData && child.userData.blink) {
-                        const time = Date.now() * 0.001;
-                        const blinkData = child.userData.blink;
-                        
-                        // Update the light intensity based on the blink parameters
-                        if (blinkData.increasing) {
-                            blinkData.intensity += blinkData.speed * deltaTime;
-                            if (blinkData.intensity > blinkData.maxIntensity) {
-                                blinkData.intensity = blinkData.maxIntensity;
-                                blinkData.increasing = false;
-                            }
-                        } else {
-                            blinkData.intensity -= blinkData.speed * deltaTime;
-                            if (blinkData.intensity < blinkData.minIntensity) {
-                                blinkData.intensity = blinkData.minIntensity;
-                                blinkData.increasing = true;
-                            }
-                        }
-                        
-                        // Apply the new intensity
-                        if (child.material && child.material.emissiveIntensity !== undefined) {
-                            child.material.emissiveIntensity = blinkData.intensity;
-                        }
-                    }
-                });
-            }
-        }
-    }
-    
-    // ... existing code ...
-}
-
-// Update height and speed indicators
-function updateIndicators() {
-    if (gameState !== 'playing') return;
-    
-    // Calculate values
-    // Convert to feet (1 meter = 3.28084 feet)
-    const heightInMeters = Math.round(ship.position.y);
-    const heightInFeet = Math.round(heightInMeters * 3.28084);
-    
-    // Calculate speed from velocity (arbitrary scale)
-    const speed = Math.sqrt(
-        velocity.x * velocity.x + 
-        velocity.y * velocity.y + 
-        velocity.z * velocity.z
-    );
-    // Convert to km/h (arbitrary scale factor)
-    const speedInKmh = Math.round(speed * 30);
-    // Convert to mph (1 km/h = 0.621371 mph)
-    const speedInMph = Math.round(speedInKmh * 0.621371);
-    
-    // Update original display in left panel
-    const heightElement = document.getElementById('height-indicator');
-    if (heightElement) {
-        heightElement.textContent = `${heightInMeters} m`;
-    }
-    
-    const speedElement = document.getElementById('speed-indicator');
-    if (speedElement) {
-        speedElement.textContent = `${speedInKmh} km/h`;
-    }
-    
-    // Update advanced flight indicator display
-    const altitudeIndicator = document.getElementById('altitude-indicator');
-    if (altitudeIndicator) {
-        altitudeIndicator.innerHTML = `${heightInFeet}<span class="units">ft</span>`;
-    }
-    
-    const speedIndicatorAdvanced = document.getElementById('speed-indicator-advanced');
-    if (speedIndicatorAdvanced) {
-        speedIndicatorAdvanced.innerHTML = `${speedInMph}<span class="units">mph</span>`;
-    }
-    
-    // Update altitude bar (max height is 120 units = 393.7 feet)
-    const altitudeBar = document.getElementById('altitude-bar');
-    if (altitudeBar) {
-        const maxAltitude = 400; // Max altitude in feet
-        const altitudePercentage = Math.min(100, (heightInFeet / maxAltitude) * 100);
-        altitudeBar.style.width = `${altitudePercentage}%`;
-        
-        // Change color based on altitude
-        if (heightInFeet < 50) {
-            altitudeBar.style.background = 'linear-gradient(to right, #ff3300, #ff6600)'; // Low altitude - orange/red
-        } else if (heightInFeet > 300) {
-            altitudeBar.style.background = 'linear-gradient(to right, #00ff99, #00ffff)'; // High altitude - cyan/green
-        } else {
-            altitudeBar.style.background = 'linear-gradient(to right, #0066ff, #00ffff)'; // Medium altitude - blue/cyan
-        }
-    }
-    
-    // Update speed bar (max speed arbitrarily set to 150 mph)
-    const speedBar = document.getElementById('speed-bar');
-    if (speedBar) {
-        const maxSpeed = 150; // Max speed in mph
-        const speedPercentage = Math.min(100, (speedInMph / maxSpeed) * 100);
-        speedBar.style.width = `${speedPercentage}%`;
-        
-        // Change color based on speed
-        if (speedInMph > 120) {
-            speedBar.style.background = 'linear-gradient(to right, #ff3300, #ff6600)'; // High speed - orange/red
-        } else if (speedInMph > 60) {
-            speedBar.style.background = 'linear-gradient(to right, #ffcc00, #ffff00)'; // Medium speed - yellow
-        } else {
-            speedBar.style.background = 'linear-gradient(to right, #0066ff, #00ffff)'; // Low speed - blue/cyan
-        }
-    }
-}
-
-// Initialize the projectile pool
-function initProjectilePool() {
-    console.log("Initializing projectile pool...");
-    projectilePool = [];
-    
-    // Create fire particle texture if not already created
-    if (!fireParticleTexture) {
-        fireParticleTexture = createFireParticleTexture();
-    }
-    
-    // Create projectiles and add to pool
-    for (let i = 0; i < PROJECTILE_POOL_SIZE; i++) {
-        // Create a small core for the projectile
-        const coreGeometry = new THREE.SphereGeometry(0.15, 6, 6);
-        const coreMaterial = new THREE.MeshStandardMaterial({
-            color: 0xff3300,
-            emissive: 0xff5500,
-            emissiveIntensity: 3.0,
-            transparent: true,
-            opacity: 0.8
-        });
-        
-        const core = new THREE.Mesh(coreGeometry, coreMaterial);
-        
-        // Add a point light to make the projectile glow
-        const projectileLight = new THREE.PointLight(0xff3300, 2, 5);
-        projectileLight.position.set(0, 0, 0);
-        core.add(projectileLight);
-        
-        // Group the core and fire particles
-        const projectileGroup = new THREE.Group();
-        projectileGroup.add(core);
-        
-        // Create projectile data
-        const projectileData = {
-            mesh: projectileGroup,
-            core: core,
-            light: projectileLight,
-            particleSystem: null, // Will be created when used
-            particles: [],
-            direction: new THREE.Vector3(), // Initialize direction vector
-            speed: PROJECTILE_SPEED,
-            distance: 0,
-            creationTime: 0,
-            lastUpdateTime: 0,
-            active: false // Start inactive
-        };
-        
-        // Add to pool
-        projectilePool.push(projectileData);
-    }
-    
-    console.log(`Projectile pool initialized with ${PROJECTILE_POOL_SIZE} projectiles`);
-}
-
-// Create a fire emitter for projectiles
-function createFireEmitter() {
-    try {
-        // Create fire particle texture if not already created
-        if (!fireParticleTexture) {
-            fireParticleTexture = createFireParticleTexture();
-        }
-        
-        // Create particles geometry
-        const particleCount = 30;
-        const particleGeometry = new THREE.BufferGeometry();
-        
-        // Arrays to store particle properties
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
-        const sizes = new Float32Array(particleCount);
-        const alphas = new Float32Array(particleCount);
-        
-        // Initialize particles with zero values
-    for (let i = 0; i < particleCount; i++) {
-            // Initial position at origin
-            positions[i * 3] = 0;
-            positions[i * 3 + 1] = 0;
-            positions[i * 3 + 2] = 0;
-            
-            // Initial color (will be overridden)
-            colors[i * 3] = 1.0;     // Red
-            colors[i * 3 + 1] = 0.5; // Green
-            colors[i * 3 + 2] = 0.0; // Blue
-            
-            // Initial size and alpha (invisible)
-        sizes[i] = 0;
-        alphas[i] = 0;
-        }
-        
-        // Add attributes to geometry
-        particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        particleGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-        particleGeometry.setAttribute('alpha', new THREE.BufferAttribute(alphas, 1));
-        
-        // Create shader material with fire texture
-        const particleMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-                texture: { value: fireParticleTexture }
-        },
-        vertexShader: `
-            attribute float size;
-            attribute float alpha;
-            attribute vec3 color;
-            varying float vAlpha;
-            varying vec3 vColor;
-            void main() {
-                vAlpha = alpha;
-                vColor = color;
-                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                gl_PointSize = size * (300.0 / -mvPosition.z);
-                gl_Position = projectionMatrix * mvPosition;
-            }
-        `,
-        fragmentShader: `
-                uniform sampler2D texture;
-            varying float vAlpha;
-            varying vec3 vColor;
-            void main() {
-                    vec4 texColor = texture2D(texture, gl_PointCoord);
-                    gl_FragColor = vec4(vColor, vAlpha) * texColor;
-            }
-        `,
-        blending: THREE.AdditiveBlending,
-            depthWrite: false,
-            transparent: true
-        });
-        
-        // Create the fire emitter
-        const emitter = new THREE.Points(particleGeometry, particleMaterial);
-        
-        // Store particle data for animation
-        const particles = [];
-        for (let i = 0; i < particleCount; i++) {
-            particles.push({
-                position: new THREE.Vector3(),
-                velocity: new THREE.Vector3(),
-                size: 0,
-                alpha: 0,
-                age: 0,
-                lifetime: 0,
-                active: false
-            });
-        }
-        
-        // Add user data to emitter
-        emitter.userData = {
-        particles: particles,
-        particleCount: particleCount,
-            lastEmitTime: 0
-        };
-        
-        // Add additional properties
-        emitter.active = false;
-        emitter.direction = new THREE.Vector3(0, 0, -1);
-        emitter.position = new THREE.Vector3();
-        emitter.lastUpdateTime = 0;
-        
-        return emitter;
-    } catch (error) {
-        console.error("Error creating fire emitter:", error);
-        // Return a dummy emitter that won't cause errors
-        const dummyGeometry = new THREE.BufferGeometry();
-        const dummyMaterial = new THREE.PointsMaterial();
-        const dummyEmitter = new THREE.Points(dummyGeometry, dummyMaterial);
-        dummyEmitter.active = false;
-        dummyEmitter.direction = new THREE.Vector3();
-        dummyEmitter.position = new THREE.Vector3();
-        dummyEmitter.lastUpdateTime = 0;
-        dummyEmitter.userData = {
-            particles: [],
-            particleCount: 0,
-            lastEmitTime: 0
-        };
-        return dummyEmitter;
-    }
-}
-
-// Get a projectile from the pool
-function getProjectileFromPool() {
-    // First try to find an inactive projectile
-    for (let i = 0; i < projectilePool.length; i++) {
-        if (!projectilePool[i].active) {
-            projectilePool[i].active = true;
-            return projectilePool[i];
-        }
-    }
-    
-    // If all projectiles are active, reuse the oldest one (first in the array)
-    if (projectiles.length > 0) {
-        const oldestProjectile = projectiles.shift();
-        scene.remove(oldestProjectile.mesh);
-        oldestProjectile.active = false;
-        
-        const poolProjectile = getProjectileFromPool();
-        return poolProjectile;
-    }
-    
-    // If no projectiles in pool (should never happen due to initialization), create a new one
-    console.warn("Projectile pool exhausted - creating new projectile");
-    
-    // Create a new fire emitter for the projectile
-    const fireEmitter = createFireEmitter();
-    
-    // Create a small core for the projectile
-    const coreGeometry = new THREE.SphereGeometry(0.15, 6, 6);
-    const coreMaterial = new THREE.MeshStandardMaterial({
-        color: 0xff3300,
-        emissive: 0xff5500,
-        emissiveIntensity: 3.0,
-        transparent: true,
-        opacity: 0.8
-    });
-    
-    const core = new THREE.Mesh(coreGeometry, coreMaterial);
-    
-    // Add a point light to make the projectile glow
-    const projectileLight = new THREE.PointLight(0xff3300, 2, 5);
-    projectileLight.position.set(0, 0, 0);
-    core.add(projectileLight);
-    
-    // Group the core and fire particles
-    const projectileGroup = new THREE.Group();
-    projectileGroup.add(core);
-    projectileGroup.add(fireEmitter);
-    
-    // Create and return projectile data
-    const projectileData = {
-        mesh: projectileGroup,
-        core: core,
-        fireEmitter: fireEmitter,
-        light: projectileLight,
-        particles: [],
-        direction: new THREE.Vector3(), // Add missing direction vector
-        speed: PROJECTILE_SPEED,
-        distance: 0,
-        creationTime: 0,
-        lastUpdateTime: 0,
-        active: true,
-        lastParticleTime: 0
-    };
-    
-    return projectileData;
-}
-
-// Fire projectile - shoot from both sides of the ship with enhanced visuals
-function fireProjectile() {
-    if (gameState !== 'playing') return;
-    
-    // Check cooldown state
-    if (weaponCooldown) {
-        console.log("Weapon in cooldown");
-        return;
-    }
-    
-    // Create enhanced projectiles
-    try {
-        // Create geometry and material for projectiles with better visuals
-        // INCREASED SIZE from 0.3 to 0.8 for better visibility and collision
-        const projectileGeometry = new THREE.SphereGeometry(0.8, 16, 16);
-        const projectileMaterial = new THREE.MeshStandardMaterial({
-            color: 0x9933ff,
-            emissive: 0xaa55ff,
-            emissiveIntensity: 5.0,
-            metalness: 0.3,
-            roughness: 0.2
-        });
-        
-        // Create projectiles (left and right)
-        const projectile1 = new THREE.Mesh(projectileGeometry, projectileMaterial.clone());
-        const projectile2 = new THREE.Mesh(projectileGeometry, projectileMaterial.clone());
-        
-        // Calculate firing direction (forward direction of ship)
-        const direction = new THREE.Vector3(0, 0, 1);
-        direction.applyQuaternion(ship.quaternion);
-        
-        // Calculate offsets for left and right projectiles
-        const offsetLeft = new THREE.Vector3(-1.5, -0.2, 0.5);
-        offsetLeft.applyQuaternion(ship.quaternion);
-        
-        const offsetRight = new THREE.Vector3(1.5, -0.2, 0.5);
-        offsetRight.applyQuaternion(ship.quaternion);
-        
-        // Position projectiles at ship's position + offset
-        projectile1.position.copy(ship.position).add(offsetLeft);
-        projectile2.position.copy(ship.position).add(offsetRight);
-        
-        // Add to scene
-        scene.add(projectile1);
-        scene.add(projectile2);
-        
-        // Add enhanced glow effect - INCREASED intensity and range
-        const light1 = new THREE.PointLight(0x9933ff, 3, 12);
-        const light2 = new THREE.PointLight(0x9933ff, 3, 12);
-        
-        light1.position.copy(projectile1.position);
-        light2.position.copy(projectile2.position);
-        
-        scene.add(light1);
-        scene.add(light2);
-        
-        // Create compact light flash instead of rectangular flash
-        const flashLight1 = new THREE.PointLight(0xcc77ff, 5, 3);
-        const flashLight2 = new THREE.PointLight(0xcc77ff, 5, 3);
-        
-        flashLight1.position.copy(projectile1.position);
-        flashLight2.position.copy(projectile2.position);
-        
-        scene.add(flashLight1);
-        scene.add(flashLight2);
-        
-        // Remove flash lights after a short time
-        setTimeout(() => {
-            scene.remove(flashLight1);
-            scene.remove(flashLight2);
-        }, 100);
-        
-        // Add trail effect - INCREASED size from 0.2 to 0.5
-        const trail1 = createProjectileTrail();
-        const trail2 = createProjectileTrail();
-        
-        trail1.position.copy(projectile1.position);
-        trail2.position.copy(projectile2.position);
-        
-        scene.add(trail1);
-        scene.add(trail2);
-        
-        // Store projectiles with their properties
-        projectiles.push({
-            mesh: projectile1,
-            light: light1,
-            trail: trail1,
-            direction: direction.clone(),
-            speed: PROJECTILE_SPEED,
-            created: Date.now(),
-            active: true,
-            // Add hitbox radius for collision detection
-            hitboxRadius: 3.0
-        });
-        
-        projectiles.push({
-            mesh: projectile2,
-            light: light2,
-            trail: trail2,
-            direction: direction.clone(),
-            speed: PROJECTILE_SPEED,
-            created: Date.now(),
-            active: true,
-            // Add hitbox radius for collision detection
-            hitboxRadius: 3.0
-        });
-        
-        // Start cooldown - enforce the delay between shots
-        startWeaponCooldown();
-        
-        // Play fire sound
-        playSound('fire');
-        
-    } catch (error) {
-        console.error("Error creating projectiles:", error);
-    }
-}
-
-// Create a projectile trail effect
-function createProjectileTrail() {
-    const trailMaterial = new THREE.MeshBasicMaterial({
-        color: 0xcc99ff,
-        transparent: true,
-        opacity: 0.7,
-        side: THREE.DoubleSide
-    });
-    
-    // INCREASED trail size from 0.2,2 to 0.5,3
-    const trailGeometry = new THREE.PlaneGeometry(0.5, 3);
-    const trail = new THREE.Mesh(trailGeometry, trailMaterial);
-    
-    // Rotate to align with projectile direction
-    trail.rotation.x = Math.PI / 2;
-    
-    return trail;
-}
-
-// Simplified update for projectiles with enhanced effects
-function updateProjectiles() {
-    if (gameState !== 'playing') return;
-    
-    const currentTime = Date.now();
-    
-    // Update weapon cooldown UI
-    if (weaponCooldown) {
-        const elapsedTime = currentTime - lastFireTime;
-        const cooldownPercent = Math.min(100, (elapsedTime / WEAPON_COOLDOWN_TIME) * 100);
-        
-        const cooldownBar = document.getElementById('cooldown-bar');
-        if (cooldownBar) {
-            cooldownBar.style.width = cooldownPercent + '%';
-        }
-        
-        // Check if cooldown is complete
-        if (elapsedTime >= WEAPON_COOLDOWN_TIME) {
-            weaponCooldown = false;
-            
-            const cooldownText = document.getElementById('cooldown-text');
-            if (cooldownText) {
-                cooldownText.textContent = 'READY';
-                cooldownText.style.color = '#bb33ff';
-                
-                // Add a brief flash effect when ready
-                cooldownText.style.textShadow = '0 0 10px #aa55ff';
-                setTimeout(() => {
-                    if (cooldownText) {
-                        cooldownText.style.textShadow = 'none';
-                    }
-                }, 200);
-            }
-        }
-    }
-    
-    // Process each projectile
-    for (let i = projectiles.length - 1; i >= 0; i--) {
-        const projectile = projectiles[i];
-        
-        // Move projectile
-        if (projectile.active) {
-            projectile.mesh.position.x += projectile.direction.x * projectile.speed * deltaTime;
-            projectile.mesh.position.y += projectile.direction.y * projectile.speed * deltaTime;
-            projectile.mesh.position.z += projectile.direction.z * projectile.speed * deltaTime;
-            
-            // Update light position
-            if (projectile.light) {
-                projectile.light.position.copy(projectile.mesh.position);
-            }
-            
-            // Update trail position and orientation
-            if (projectile.trail) {
-                projectile.trail.position.copy(projectile.mesh.position);
-                projectile.trail.lookAt(projectile.mesh.position.clone().sub(projectile.direction));
-            }
-            
-            // Check projectile lifetime
-            const age = currentTime - projectile.created;
-            if (age > PROJECTILE_LIFETIME) {
-                // Remove projectile and light
-                scene.remove(projectile.mesh);
-                if (projectile.light) scene.remove(projectile.light);
-                if (projectile.trail) scene.remove(projectile.trail);
-                
-                // Cleanup
-                if (projectile.mesh.geometry) projectile.mesh.geometry.dispose();
-                if (projectile.mesh.material) projectile.mesh.material.dispose();
-                if (projectile.trail && projectile.trail.geometry) projectile.trail.geometry.dispose();
-                if (projectile.trail && projectile.trail.material) projectile.trail.material.dispose();
-                
-                projectiles.splice(i, 1);
-                continue;
-            }
-            
-            // Modified collision detection using projection-based method
-            let hitDrone = checkProjectileDroneCollision(projectile);
-            
-            // Remove projectile if it hit a drone
-            if (hitDrone) {
-                // Remove projectile
-                scene.remove(projectile.mesh);
-                if (projectile.light) scene.remove(projectile.light);
-                if (projectile.trail) scene.remove(projectile.trail);
-                
-                // Cleanup
-                if (projectile.mesh.geometry) projectile.mesh.geometry.dispose();
-                if (projectile.mesh.material) projectile.mesh.material.dispose();
-                if (projectile.trail && projectile.trail.geometry) projectile.trail.geometry.dispose();
-                if (projectile.trail && projectile.trail.material) projectile.trail.material.dispose();
-                
-                // Remove projectile from array
-            projectiles.splice(i, 1);
-        }
-    }
-    }
-}
-
-// New improved collision detection function
-function checkProjectileDroneCollision(projectile) {
-    // Get the projectile hitbox radius or default to a larger value (5.0)
-    const hitboxRadius = projectile.hitboxRadius || 5.0;
-    
-    // Store a reference to the projectile position
-    const projectilePos = projectile.mesh.position;
-    
-    // Check for collision with drones using multiple methods
-    for (let j = drones.length - 1; j >= 0; j--) {
-        const drone = drones[j];
-        
-        // Skip if drone is not active
-        if (!drone.active) continue;
-        
-        // Make sure drone position is updated
-        drone.position.copy(drone.mesh.position);
-        
-        // METHOD 1: Simple distance check with large radius
-        const distance = projectilePos.distanceTo(drone.position);
-        if (distance < hitboxRadius) {
-            handleDroneHit(drone);
-            return true;
-        }
-        
-        // METHOD 2: Check if drone is in the forward path of the projectile
-        // Calculate vector from projectile to drone
-        const toDrone = new THREE.Vector3().subVectors(drone.position, projectilePos);
-        
-        // Project this vector onto the projectile direction
-        const projectionLength = toDrone.dot(projectile.direction);
-        
-        // Only check drones that are in front of the projectile
-        if (projectionLength > 0 && projectionLength < 10) {
-            // Calculate the closest point on the projectile's path to the drone
-            const projectedPoint = new THREE.Vector3()
-                .copy(projectilePos)
-                .add(projectile.direction.clone().multiplyScalar(projectionLength));
-            
-            // Check distance from this point to the drone
-            const perpendicularDistance = projectedPoint.distanceTo(drone.position);
-            
-            // If this distance is small enough, we have a hit
-            if (perpendicularDistance < 4.0) {
-                handleDroneHit(drone);
-                return true;
-            }
-        }
-    }
-    
-    // No collision detected
-    return false;
-}
-
-// Handle drone hit
-function handleDroneHit(drone) {
-    console.log("Hit drone at position:", drone.position.x, drone.position.y, drone.position.z);
-    
-    // Create explosion at drone position
-    createDroneExplosion(
-        drone.position.x,
-        drone.position.y,
-        drone.position.z
-    );
-    
-    // Remove drone
-    scene.remove(drone.mesh);
-    deactivateDrone(drone);
-    
-    // Update score
-    score += 20;
-    document.getElementById('score-display').textContent = `Score: ${score}`;
-    
-    // Play explosion sound
-    playSound('explosion');
-}
-
-// Create an enhanced muzzle flash at position
-function createEnhancedMuzzleFlash(position, direction) {
-    // Create main flash
-    const flashGeometry = new THREE.PlaneGeometry(1.2, 1.2);
-    const flashMaterial = new THREE.MeshBasicMaterial({
-        color: 0xaa55ff,
-        transparent: true,
-        opacity: 0.9,
-        side: THREE.DoubleSide,
-        blending: THREE.AdditiveBlending
-    });
-    
-    const flash = new THREE.Mesh(flashGeometry, flashMaterial);
-    flash.position.copy(position);
-    flash.lookAt(position.clone().add(direction));
-    
-    // Add some randomness to the flash rotation
-    flash.rotation.z = Math.random() * Math.PI * 2;
-    
-    scene.add(flash);
-    
-    // Add a secondary smaller flash
-    const innerFlashGeometry = new THREE.PlaneGeometry(0.6, 0.6);
-    const innerFlashMaterial = new THREE.MeshBasicMaterial({
-        color: 0xcc99ff,
-        transparent: true,
-        opacity: 1.0,
-        side: THREE.DoubleSide,
-        blending: THREE.AdditiveBlending
-    });
-    
-    const innerFlash = new THREE.Mesh(innerFlashGeometry, innerFlashMaterial);
-    innerFlash.position.copy(position);
-    innerFlash.lookAt(position.clone().add(direction));
-    innerFlash.rotation.z = Math.random() * Math.PI * 2;
-    
-    scene.add(innerFlash);
-    
-    // Add a brighter light
-    const flashLight = new THREE.PointLight(0x9933ff, 4, 10);
-    flashLight.position.copy(position);
-    scene.add(flashLight);
-    
-    // Animate the flash
-    let opacity = 1.0;
-    let size = 1.0;
-    
-    const animateFlash = () => {
-        opacity -= 0.1;
-        size += 0.15;
-        
-        flash.scale.set(size, size, 1);
-        flashMaterial.opacity = opacity;
-        
-        innerFlashMaterial.opacity = opacity * 1.2;
-        flashLight.intensity = opacity * 4;
-        
-        if (opacity > 0) {
-            requestAnimationFrame(animateFlash);
-        } else {
-            // Clean up
-            scene.remove(flash);
-            scene.remove(innerFlash);
-            scene.remove(flashLight);
-            
-            flashGeometry.dispose();
-            flashMaterial.dispose();
-            innerFlashGeometry.dispose();
-            innerFlashMaterial.dispose();
-        }
-    };
-    
-    animateFlash();
 }
 
 // Start weapon cooldown with enforced delay
@@ -4991,4 +4266,182 @@ function createTallBuildings() {
     }
     
     console.log("Added tall buildings. Total building count:", buildings.length);
+}
+
+// Create a pool of floating text elements to reuse
+function initFloatingTextPool() {
+    for (let i = 0; i < FLOATING_TEXT_POOL_SIZE; i++) {
+        const textElement = document.createElement('div');
+        textElement.className = 'floating-text';
+        textElement.style.position = 'fixed';
+        textElement.style.fontFamily = 'Orbitron, sans-serif';
+        textElement.style.fontWeight = 'bold';
+        textElement.style.zIndex = '100';
+        textElement.style.pointerEvents = 'none';
+        textElement.style.opacity = '0'; // Start hidden
+        textElement.style.display = 'none'; // Hide initially
+        document.body.appendChild(textElement);
+        
+        floatingTextPool.push({
+            element: textElement,
+            active: false
+        });
+    }
+}
+
+// Simplified update for projectiles with enhanced effects and frustum culling
+function updateProjectiles() {
+    if (gameState !== 'playing') return;
+    
+    const currentTime = Date.now();
+    
+    // Create frustum for culling
+    const frustum = new THREE.Frustum();
+    const projScreenMatrix = new THREE.Matrix4();
+    projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    frustum.setFromProjectionMatrix(projScreenMatrix);
+    
+    // Update weapon cooldown UI
+    if (weaponCooldown) {
+        const elapsedTime = currentTime - lastFireTime;
+        const cooldownPercent = Math.min(100, (elapsedTime / WEAPON_COOLDOWN_TIME) * 100);
+        
+        const cooldownBar = document.getElementById('cooldown-bar');
+        if (cooldownBar) {
+            cooldownBar.style.width = cooldownPercent + '%';
+        }
+        
+        // Check if cooldown is complete
+        if (elapsedTime >= WEAPON_COOLDOWN_TIME) {
+            weaponCooldown = false;
+            
+            const cooldownText = document.getElementById('cooldown-text');
+            if (cooldownText) {
+                cooldownText.textContent = 'READY';
+                cooldownText.style.color = '#bb33ff';
+                
+                // Add a brief flash effect when ready
+                cooldownText.style.textShadow = '0 0 10px #aa55ff';
+                setTimeout(() => {
+                    if (cooldownText) {
+                        cooldownText.style.textShadow = 'none';
+                    }
+                }, 200);
+            }
+        }
+    }
+    
+    // Process each projectile with frustum culling
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const projectile = projectiles[i];
+        
+        // Move projectile
+        if (projectile.active) {
+            projectile.mesh.position.x += projectile.direction.x * projectile.speed * deltaTime;
+            projectile.mesh.position.y += projectile.direction.y * projectile.speed * deltaTime;
+            projectile.mesh.position.z += projectile.direction.z * projectile.speed * deltaTime;
+            
+            // Create a bounding sphere for the projectile for frustum culling
+            const projectilePos = projectile.mesh.position.clone();
+            const boundingSphere = new THREE.Sphere(projectilePos, 5); // Using a reasonable radius
+            
+            // Check if projectile is in view frustum
+            const isVisible = frustum.intersectsSphere(boundingSphere);
+            
+            // Set visibility based on frustum culling
+            projectile.mesh.visible = isVisible;
+            
+            // Only update visual effects if the projectile is visible
+            if (isVisible) {
+                // Update light position
+                if (projectile.light) {
+                    projectile.light.position.copy(projectile.mesh.position);
+                    projectile.light.visible = true;
+                }
+                
+                // Update trail position and orientation
+                if (projectile.trail) {
+                    projectile.trail.position.copy(projectile.mesh.position);
+                    projectile.trail.lookAt(projectile.mesh.position.clone().sub(projectile.direction));
+                    projectile.trail.visible = true;
+                }
+            } else {
+                // Hide light and trail if projectile is not visible
+                if (projectile.light) projectile.light.visible = false;
+                if (projectile.trail) projectile.trail.visible = false;
+            }
+            
+            // Check projectile lifetime
+            const age = currentTime - projectile.created;
+            if (age > PROJECTILE_LIFETIME) {
+                // Remove projectile and light
+                scene.remove(projectile.mesh);
+                if (projectile.light) scene.remove(projectile.light);
+                if (projectile.trail) scene.remove(projectile.trail);
+                
+                // Cleanup
+                if (projectile.mesh.geometry) projectile.mesh.geometry.dispose();
+                if (projectile.mesh.material) projectile.mesh.material.dispose();
+                if (projectile.trail && projectile.trail.geometry) projectile.trail.geometry.dispose();
+                if (projectile.trail && projectile.trail.material) projectile.trail.material.dispose();
+                
+                projectiles.splice(i, 1);
+                continue;
+            }
+            
+            // Only check collisions if projectile is visible (performance optimization)
+            if (isVisible) {
+                // Modified collision detection using projection-based method
+                let hitDrone = checkProjectileDroneCollision(projectile);
+                
+                // Remove projectile if it hit a drone
+                if (hitDrone) {
+                    // Remove projectile
+                    scene.remove(projectile.mesh);
+                    if (projectile.light) scene.remove(projectile.light);
+                    if (projectile.trail) scene.remove(projectile.trail);
+                    
+                    // Cleanup
+                    if (projectile.mesh.geometry) projectile.mesh.geometry.dispose();
+                    if (projectile.mesh.material) projectile.mesh.material.dispose();
+                    if (projectile.trail && projectile.trail.geometry) projectile.trail.geometry.dispose();
+                    if (projectile.trail && projectile.trail.material) projectile.trail.material.dispose();
+                    
+                    // Remove projectile from array
+                    projectiles.splice(i, 1);
+                }
+            }
+        }
+    }
+}
+
+// Apply frustum culling to buildings
+function applyBuildingFrustumCulling(frustum) {
+    // Only process this once per frame for efficiency
+    const visibleRadius = 200; // Only process buildings within this radius from player
+    const playerPos = ship.position.clone();
+    
+    // Process each building
+    for (const building of buildings) {
+        // Skip if building is null or has no mesh
+        if (!building || !building.mesh) continue;
+        
+        // Use a distance check first for quick rejection
+        const buildingPos = new THREE.Vector3(building.x, building.height/2, building.z);
+        const distance = buildingPos.distanceTo(playerPos);
+        
+        // If building is too far, hide it
+        if (distance > visibleRadius) {
+            building.mesh.visible = false;
+            continue;
+        }
+        
+        // For closer buildings, use proper frustum culling with bounding box or sphere
+        // Create a sphere that encompasses the building
+        const radius = Math.max(building.width, building.height, building.depth) / 2 + 5; // Add some padding
+        const boundingSphere = new THREE.Sphere(buildingPos, radius);
+        
+        // Check if building is in view frustum
+        building.mesh.visible = frustum.intersectsSphere(boundingSphere);
+    }
 }
