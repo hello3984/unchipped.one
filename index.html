@@ -69,14 +69,25 @@
         #score-display {
             position: fixed;
             top: 20px;
-            right: 20px;
+            left: 20px;
             font-size: 24px;
             color: #00ffff;
+            text-shadow: 0 0 5px #00ffff;
+            z-index: 50;
+        }
+        
+        #fps-counter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            font-size: 18px;
+            color: #00ff00;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
+            z-index: 50;
             background-color: rgba(0, 0, 0, 0.5);
-            padding: 8px 16px;
+            padding: 5px 10px;
             border-radius: 5px;
-            border: 1px solid #00ffff;
-            z-index: 10;
+            font-family: monospace;
         }
         
         #health-bar-container {
@@ -579,6 +590,7 @@
         <div id="health-bar"></div>
     </div>
     <div id="score-display">Score: 0</div>
+    <div id="fps-counter">FPS: 0</div>
     <div id="start-screen" class="game-screen">
         <div id="x-machina-logo">
             <h1>X-Machina: The Unchipped One</h1>
@@ -695,6 +707,11 @@
                 <div id="speed-bar" class="speed-bar"></div>
             </div>
         </div>
+    </div>
+    
+    <div id="overlay-controls">
+        <div id="joystick-left"></div>
+        <div id="joystick-right"></div>
     </div>
     
     <script>

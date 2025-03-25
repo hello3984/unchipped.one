@@ -3262,6 +3262,23 @@ function animate() {
     // Calculate delta time for smooth animation
     const currentTime = performance.now();
     deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
+    
+    // Calculate and display FPS
+    const fps = Math.round(1 / deltaTime);
+    const fpsDisplay = document.getElementById('fps-counter');
+    if (fpsDisplay) {
+        fpsDisplay.textContent = `FPS: ${fps}`;
+        
+        // Color code based on performance
+        if (fps > 45) {
+            fpsDisplay.style.color = '#00ff00'; // Green for good performance
+        } else if (fps > 30) {
+            fpsDisplay.style.color = '#ffff00'; // Yellow for acceptable performance
+        } else {
+            fpsDisplay.style.color = '#ff0000'; // Red for poor performance
+        }
+    }
+    
     lastFrameTime = currentTime;
     
     // Skip animation if game is paused
