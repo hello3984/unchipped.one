@@ -156,6 +156,18 @@
             transition: opacity 0.5s ease-in-out;
         }
         
+        .floating-text {
+            font-size: 24px;
+            animation: float-up 1.5s ease-out forwards;
+            text-shadow: 0 0 8px currentColor;
+        }
+        
+        @keyframes float-up {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.5); }
+            100% { transform: scale(1) translateY(-30px); }
+        }
+        
         #debug-panel {
             position: fixed;
             top: 50px;

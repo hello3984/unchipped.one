@@ -119,14 +119,18 @@ let controlPanelVisible = true; // Track if the control panel is visible
 let explosionPool = []; // Pool of reusable explosion objects
 let explosionParticleTexture = null; // Texture for explosion particles
 let dronePool = []; // Pool of reusable drone objects
+let scoreMultiplier = 1; // Score multiplier for quick collection
+let lastFragmentCollectTime = 0; // Time of last fragment collection
+const MULTIPLIER_DECAY_TIME = 3000; // Time before multiplier starts decreasing (3 seconds)
+const MAX_MULTIPLIER = 5; // Maximum score multiplier
 
 // Constants
 const CITY_SIZE = 500;
 const BUILDING_COUNT = 100;
-const DATA_FRAGMENT_COUNT = 20; // Changed from 20 to 30 fragments
+const DATA_FRAGMENT_COUNT = 30; // Changed from 20 to 30 fragments
 const DRONE_COUNT = 15; // Increased from 10 to 15 - more drones to protect data fragments
-const SHIP_SPEED = 1.5;
-const SHIP_ROTATION_SPEED = 0.05;
+const SHIP_SPEED = 2.0; // Increased from 1.5 for better responsiveness
+const SHIP_ROTATION_SPEED = 0.06; // Increased from 0.05 for quicker turning
 const CAMERA_FOLLOW_SPEED = 0.1;
 const DRONE_PATROL_SPEED = 0.3; // Speed when patrolling
 const DRONE_PURSUIT_SPEED = 0.8; // Speed when pursuing player
@@ -138,7 +142,7 @@ const INVINCIBILITY_TIME = 2000; // Milliseconds of invincibility after damage
 const PROJECTILE_SPEED = 100;
 const PROJECTILE_LIFETIME = 3000; // 3 seconds
 const PROJECTILE_MAX_DISTANCE = 200; // Maximum distance projectiles can travel
-const WEAPON_COOLDOWN_TIME = 500; // 500ms (half second) cooldown between shots
+const WEAPON_COOLDOWN_TIME = 400; // Reduced from 500ms to 400ms for faster firing
 const ENERGY_CONDUIT_WIDTH = 30; // Width of the energy conduit
 
 // Quotes displayed when collecting data fragments
@@ -2502,6 +2506,13 @@ function applyDamage(amount) {
 function checkFragmentCollisions() {
     const shipPosition = new THREE.Vector3(ship.position.x, ship.position.y, ship.position.z);
     const collectionDistance = 3; // Distance for collecting fragments
+    const currentTime = Date.now();
+    
+    // Update score multiplier - decay over time if no fragments collected recently
+    if (scoreMultiplier > 1 && currentTime - lastFragmentCollectTime > MULTIPLIER_DECAY_TIME) {
+        scoreMultiplier = Math.max(1, scoreMultiplier - (deltaTime * 0.5)); // Gradual decay
+        updateScoreDisplay();
+    }
     
     for (let i = dataFragments.length - 1; i >= 0; i--) {
         const fragment = dataFragments[i];
@@ -2514,9 +2525,25 @@ function checkFragmentCollisions() {
             scene.remove(fragment.mesh);
             dataFragments.splice(i, 1);
             
-            // Update score
-            score += 10;
-            document.getElementById('score-display').textContent = `Score: ${score}`;
+            // Update score multiplier for quick collection
+            const timeSinceLastFragment = currentTime - lastFragmentCollectTime;
+            if (timeSinceLastFragment < 5000) { // If collected within 5 seconds of last one
+                scoreMultiplier = Math.min(MAX_MULTIPLIER, scoreMultiplier + 0.5); // Increase multiplier
+            } else {
+                scoreMultiplier = 1; // Reset if too slow
+            }
+            lastFragmentCollectTime = currentTime;
+            
+            // Update score with multiplier
+            const basePoints = 10;
+            const bonusPoints = Math.floor(basePoints * scoreMultiplier);
+            score += bonusPoints;
+            
+            // Display floating score text
+            showFloatingText(`+${bonusPoints}`, fragment.x, fragment.y, fragment.z);
+            
+            // Update score display
+            updateScoreDisplay();
             
             // Play collection sound
             playSound('collect');
@@ -2524,16 +2551,77 @@ function checkFragmentCollisions() {
             // Show a random quote
             showQuote();
             
-            // Count collected fragments (DATA_FRAGMENT_COUNT - remaining)
-            const collectedFragments = DATA_FRAGMENT_COUNT - dataFragments.length;
-            
-            // Check if 10 fragments are collected - level complete
-            if (collectedFragments >= 10) {
-                // Level 1 complete with cryptic message
+            // Check if all fragments collected
+            if (dataFragments.length === 0) {
+                // Level completed!
                 completeLevel();
             }
+            
+            return true; // Return true since we made a change to the fragments array
         }
     }
+    
+    return false;
+}
+
+// Helper function to update score display with multiplier info
+function updateScoreDisplay() {
+    const scoreDisplay = document.getElementById('score-display');
+    if (scoreDisplay) {
+        if (scoreMultiplier > 1) {
+            scoreDisplay.textContent = `Score: ${score} (x${scoreMultiplier.toFixed(1)})`;
+            scoreDisplay.style.color = '#ffcc00'; // Highlight when multiplier is active
+        } else {
+            scoreDisplay.textContent = `Score: ${score}`;
+            scoreDisplay.style.color = '#00ffff'; // Reset to default color
+        }
+    }
+}
+
+// Show floating text for score display
+function showFloatingText(text, x, y, z) {
+    // Create the HTML element for floating text
+    const floatingText = document.createElement('div');
+    floatingText.className = 'floating-text';
+    floatingText.textContent = text;
+    floatingText.style.position = 'fixed';
+    floatingText.style.color = scoreMultiplier > 1 ? '#ffcc00' : '#00ffff';
+    floatingText.style.fontFamily = 'Orbitron, sans-serif';
+    floatingText.style.fontWeight = 'bold';
+    floatingText.style.textShadow = '0 0 5px #00ffff';
+    floatingText.style.zIndex = '100';
+    floatingText.style.pointerEvents = 'none';
+    
+    // Add element to the DOM
+    document.body.appendChild(floatingText);
+    
+    // Convert 3D position to screen position
+    const vector = new THREE.Vector3(x, y, z);
+    vector.project(camera);
+    
+    const screenX = (vector.x * 0.5 + 0.5) * window.innerWidth;
+    const screenY = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+    
+    // Position the text
+    floatingText.style.left = screenX + 'px';
+    floatingText.style.top = screenY + 'px';
+    
+    // Animate the text rising and fading
+    let opacity = 1;
+    const animateText = () => {
+        if (opacity <= 0) {
+            document.body.removeChild(floatingText);
+            return;
+        }
+        
+        opacity -= 0.02;
+        floatingText.style.opacity = opacity;
+        floatingText.style.top = (parseFloat(floatingText.style.top) - 1) + 'px';
+        
+        requestAnimationFrame(animateText);
+    };
+    
+    animateText();
 }
 
 // Level completion function
