@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error Checker</title>
+</head>
+<body>
+    <h1>Checking for errors on unchipped.one</h1>
+    <div id="result"></div>
+    
+    <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                // Fetch the main page
+                const response = await fetch('https://unchipped.one');
+                const html = await response.text();
+                
+                // Fetch the script.js file
+                const scriptResponse = await fetch('https://unchipped.one/script.js');
+                const scriptContent = await scriptResponse.text();
+                
+                // Fetch the bridge.js file
+                const bridgeResponse = await fetch('https://unchipped.one/bridge.js');
+                const bridgeContent = await bridgeResponse.text();
+                
+                // Check if CITY_SIZE is defined in script.js
+                const citySizeDefined = scriptContent.includes('const CITY_SIZE =');
+                
+                // Check if bridge.js export is correct
+                const bridgeExportCorrect = bridgeContent.includes('export default gameBridge');
+                
+                // Check if script.js imports bridge.js
+                const scriptImportsBridge = scriptContent.includes("import gameBridge from './bridge.js'");
+                
+                resultDiv.innerHTML = `
+                    <p><strong>Page fetched:</strong> ${response.ok ? '✅' : '❌'}</p>
+                    <p><strong>script.js fetched:</strong> ${scriptResponse.ok ? '✅' : '❌'}</p>
+                    <p><strong>bridge.js fetched:</strong> ${bridgeResponse.ok ? '✅' : '❌'}</p>
+                    <p><strong>CITY_SIZE defined:</strong> ${citySizeDefined ? '✅' : '❌'}</p>
+                    <p><strong>bridge.js export correct:</strong> ${bridgeExportCorrect ? '✅' : '❌'}</p>
+                    <p><strong>script.js imports bridge.js:</strong> ${scriptImportsBridge ? '✅' : '❌'}</p>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html> 
