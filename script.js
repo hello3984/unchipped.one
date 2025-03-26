@@ -148,6 +148,10 @@ const SHIP_SPEED = 1.5;
 // Add ship rotation speed constant
 const SHIP_ROTATION_SPEED = 0.05;
 
+// Add damage cooldown and invincibility time constants
+const DAMAGE_COOLDOWN = 1000; // Milliseconds between damage instances
+const INVINCIBILITY_TIME = 2000; // Milliseconds of invincibility after damage
+
 // Add these variables near the top with other game variables
 let floatingTextPool = []; // Pool of reusable floating text elements
 const FLOATING_TEXT_POOL_SIZE = 10; // Maximum number of floating text elements
