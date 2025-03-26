@@ -4680,3 +4680,165 @@ function initProjectilePool() {
     
     console.log(`Projectile pool initialized with ${PROJECTILE_POOL_SIZE} projectiles`);
 }
+
+// Update visual effects (can run in any game state)
+function updateVisualEffects() {
+    // Drone scanner ring pulsation
+    for (const drone of drones) {
+        const scanner = drone.mesh.children[0].children[2]; // The ring geometry
+        if (scanner) {
+            const time = Date.now() * 0.001;
+            const pulse = (Math.sin(time * 3) + 1) * 0.5; // 0 to 1 pulsation
+            
+            // Adjust scale or opacity based on pulse
+            scanner.scale.set(1 + pulse * 0.2, 1 + pulse * 0.2, 1);
+            scanner.material.opacity = 0.7 + pulse * 0.3;
+            
+            // Make it glow more intensely if pursuing
+            if (drone.isPursuing) {
+                scanner.material.color.setRGB(1, 0.3, 0.3);
+            } else {
+                scanner.material.color.setRGB(0.3, 0.7, 1);
+            }
+        }
+    }
+    
+    // Update ship engine color based on acceleration
+    if (ship && ship.children[0]) {
+        const isAccelerating = moveForward;
+        const shipGeometry = ship.children[0];
+        
+        // Find all engine cores marked for color changing
+        shipGeometry.traverse(function(child) {
+            if (child.userData && child.userData.isEngineCore) {
+                if (child.material && child.material.color && child.material.emissive) {
+                    if (isAccelerating) {
+                        // Red color when accelerating
+                        child.material.color.setHex(0xff3300);
+                        child.material.emissive.setHex(0xff3300);
+                        child.material.emissiveIntensity = 1.5;
+                        
+                        // Add pulsing effect based on time
+                        const time = Date.now() * 0.005;
+                        const pulse = (Math.sin(time * 3) + 1) * 0.2 + 0.8; // 0.8 to 1.2 pulsation
+                        child.scale.z = pulse;
+                    } else {
+                        // Blue color when not accelerating
+                        child.material.color.setHex(0x3498db);
+                        child.material.emissive.setHex(0x3498db);
+                        child.material.emissiveIntensity = 1.0;
+                        
+                        // Reset scale if not accelerating
+                        child.scale.z = 1.0;
+                    }
+                }
+            }
+        });
+        
+        // Update engine exhaust size based on acceleration
+        if (shipGeometry.userData.engineParticles) {
+            const particleSystems = shipGeometry.userData.engineParticles;
+            for (const particleSystem of particleSystems) {
+                const particles = particleSystem.geometry;
+                const positions = particles.attributes.position.array;
+                const colors = particles.attributes.color.array;
+                
+                // Make particles more intense and red-colored when accelerating
+                for (let i = 0; i < colors.length / 3; i++) {
+                    const i3 = i * 3;
+                    if (isAccelerating) {
+                        // More red when accelerating
+                        colors[i3] = 0.9 + Math.random() * 0.1; // Stronger red
+                        colors[i3 + 1] = 0.3 + Math.random() * 0.2; // Less green
+                        colors[i3 + 2] = 0.2 + Math.random() * 0.1; // Less blue
+                    } else {
+                        // More blue when not accelerating
+                        colors[i3] = 0.5 + Math.random() * 0.5; // Less red
+                        colors[i3 + 1] = 0.7 + Math.random() * 0.3; // More green
+                        colors[i3 + 2] = 0.9 + Math.random() * 0.1; // More blue
+                    }
+                }
+                
+                particles.attributes.color.needsUpdate = true;
+            }
+        }
+    }
+    
+    // Update ship engine particles if they exist
+    if (ship && ship.children[0].userData.engineParticles) {
+        const particleSystems = ship.children[0].userData.engineParticles;
+        const currentTime = Date.now();
+        
+        for (const particleSystem of particleSystems) {
+            const particles = particleSystem.geometry;
+            const positions = particles.attributes.position.array;
+            const colors = particles.attributes.color.array;
+            const originalPositions = particles.userData.originalPositions;
+            
+            // Animate particles
+            for (let i = 0; i < positions.length / 3; i++) {
+                const i3 = i * 3;
+                
+                // Move particles back faster if accelerating
+                const speedFactor = moveForward ? 0.08 : 0.05;
+                positions[i3 + 2] -= speedFactor; 
+                
+                // If particles moved too far, reset them
+                if (positions[i3 + 2] < originalPositions[i3 + 2] - 1.0) {
+                    positions[i3] = originalPositions[i3] + (Math.random() * 0.1 - 0.05);
+                    positions[i3 + 1] = originalPositions[i3 + 1] + (Math.random() * 0.1 - 0.05);
+                    positions[i3 + 2] = originalPositions[i3 + 2];
+                }
+                
+                // Fade out particles based on distance
+                const distance = originalPositions[i3 + 2] - positions[i3 + 2];
+                const fade = 1.0 - (distance / 1.0);
+                
+                // Update particle alpha based on fade
+                if (i < colors.length / 3) {
+                    // Keep color but adjust brightness with fade
+                    colors[i3] *= fade;
+                    colors[i3 + 1] *= fade;
+                    colors[i3 + 2] *= fade;
+                }
+            }
+            
+            // Update geometry attributes
+            particles.attributes.position.needsUpdate = true;
+            particles.attributes.color.needsUpdate = true;
+        }
+    }
+    
+    // Animate wing navigation lights to pulse
+    if (ship && ship.children[0]) {
+        const shipGeometry = ship.children[0];
+        
+        // Create a pulsing effect for wing lights
+        const time = Date.now() * 0.001;
+        const pulse = (Math.sin(time * 2) + 1) * 0.5; // 0 to 1 pulsation
+        
+        shipGeometry.traverse(function(child) {
+            // Animate wing lights
+            if (child.userData && child.userData.isWingLight) {
+                if (child.material) {
+                    // Adjust intensity based on pulse
+                    child.material.emissiveIntensity = 0.7 + pulse * 0.6;
+                    
+                    // Slight scale pulsation for visual interest
+                    const scalePulse = 0.9 + pulse * 0.2;
+                    child.scale.set(scalePulse, scalePulse, scalePulse);
+                }
+            }
+            
+            // Animate wing light glow
+            if (child.userData && child.userData.isWingLightGlow) {
+                if (child.material) {
+                    // Adjust opacity and scale for glow effect
+                    child.material.opacity = 0.2 + pulse * 0.5;
+                    const glowScale = 1.0 + pulse * 0.4;
+                    child.scale.set(glowScale, glowScale, glowScale);
+                }
+            }
+        });
+    }
+}
