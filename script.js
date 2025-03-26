@@ -906,7 +906,7 @@ function createLetterSegments(letter, size) {
 }
 
 // Create cityscape with buildings
-function createCityscape() {
+function createBasicCityscape() {
     console.log("Starting to create cityscape. Building count target:", BUILDING_COUNT);
     buildings = []; // Ensure buildings array is empty before we start
     
@@ -5184,3 +5184,13 @@ function addVehiclesToCity(vehicleModel) {
 }
 
 // ... existing code ...
+
+// Create basic cityscape with buildings - renamed to avoid duplicate declaration
+function createBasicCityscape() {
+    console.log("Starting to create cityscape. Building count target:", BUILDING_COUNT);
+    buildings = []; // Ensure buildings array is empty before we start
+    
+    for (let i = 0; i < BUILDING_COUNT; i++) {
+        // ... existing code ...
+    }
+}
