@@ -6,6 +6,29 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="X-MACHINA: Aurora Prime Explorer - An immersive browser game set in the world of the X-MACHINA book series by F. Bayraktar. Collect data fragments in a cyberpunk world where consciousness and AI merge.">
+    <meta name="keywords" content="X-MACHINA, Aurora Prime, cyberpunk, sci-fi game, F. Bayraktar, unchipped, consciousness AI, browser game">
+    <meta name="author" content="F. Bayraktar">
+    <!-- Open Graph / Social Media Meta Tags -->
+    <meta property="og:title" content="X-MACHINA: Aurora Prime Explorer | Official Game">
+    <meta property="og:description" content="Explore Aurora Prime in this official browser game based on the X-MACHINA book series. Collect data fragments and avoid drones in this cyberpunk world.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://unchipped.one/">
+    <meta property="og:image" content="https://unchipped.one/images/og-image.jpg">
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="X-MACHINA: Aurora Prime Explorer | Official Game">
+    <meta name="twitter:description" content="Explore Aurora Prime in this official browser game based on the X-MACHINA book series. Collect data fragments and avoid drones in this cyberpunk world.">
+    <meta name="twitter:image" content="https://unchipped.one/images/og-image.jpg">
+    <meta name="twitter:site" content="@Xmachinamodel">
+    <meta name="twitter:creator" content="@Xmachinamodel">
+    <!-- Book and Product Meta Tags -->
+    <meta name="book:author" content="F. Bayraktar">
+    <meta name="book:isbn" content="B0DTYG4VC9">
+    <meta name="book:release_date" content="2023-11-14">
+    <meta name="product:availability" content="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV">
+    <meta name="x:profile" content="https://x.com/Xmachinamodel">
     <title>X-Machina: Aurora Prime Explorer</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
     <script type="importmap">
@@ -470,6 +493,18 @@
             box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
         }
         
+        #start-screen .x-button {
+            background-color: #1DA1F2;
+            color: #000033;
+        }
+        
+        #start-screen .x-button:hover {
+            background-color: #000033;
+            color: #1DA1F2;
+            border: 2px solid #1DA1F2;
+            box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
+        }
+        
         #start-screen #start-button {
             animation: pulse 1.5s infinite alternate;
             position: relative;
@@ -554,6 +589,31 @@
             border: 2px solid #ff3366;
             box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
         }
+        
+        #game-over-screen .x-button {
+            background-color: #1DA1F2;
+            color: #000033;
+        }
+        
+        #game-over-screen .x-button:hover {
+            background-color: #000033;
+            color: #1DA1F2;
+            border: 2px solid #1DA1F2;
+            box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
+        }
+        
+        /* Pause screen styles */
+        #pause-screen .x-button {
+            background-color: #1DA1F2;
+            color: #000033;
+        }
+        
+        #pause-screen .x-button:hover {
+            background-color: #000033;
+            color: #1DA1F2;
+            border: 2px solid #1DA1F2;
+            box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -584,6 +644,9 @@
             <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank">
                 <button class="book-button">DISCOVER THE BOOK</button>
             </a>
+            <a href="https://x.com/Xmachinamodel" target="_blank">
+                <button class="x-button">FOLLOW ON X</button>
+            </a>
         </div>
     </div>
     <div id="game-over-screen" class="game-screen">
@@ -595,6 +658,9 @@
             <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank">
                 <button class="book-button">DISCOVER THE BOOK</button>
             </a>
+            <a href="https://x.com/Xmachinamodel" target="_blank">
+                <button class="x-button">FOLLOW ON X</button>
+            </a>
         </div>
     </div>
     
@@ -605,6 +671,9 @@
             <button id="resume-button">Resume Connection</button>
             <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank">
                 <button class="book-button">DISCOVER THE BOOK</button>
+            </a>
+            <a href="https://x.com/Xmachinamodel" target="_blank">
+                <button class="x-button">FOLLOW ON X</button>
             </a>
         </div>
     </div>
@@ -705,54 +774,54 @@
                 <p>Line: ${e.lineno}</p>
                 <p>Try refreshing the page or check the console for more details.</p>
             `;
-        });
-        
-        // Hide loading screen after 5 seconds maximum
-        setTimeout(function() {
-            document.getElementById('loading').style.display = 'none';
-        }, 5000);
-        
-        // Create a global bridge function that the module can connect to
-        window.gameControl = {
-            startGame: null,  // Will be filled by the module
-            pauseGame: null,
-            resumeGame: null,
-            restartGame: null
-        };
-        
-        // Make start button work with direct click handler
-        document.getElementById('start-button').addEventListener('click', function() {
-            console.log("Start button clicked via direct event listener");
-            // Try to start the game using the bridge
-            if (window.gameControl && window.gameControl.startGame) {
-                window.gameControl.startGame();
-            } else {
-                console.log("Game start function not available yet");
-                // At least hide the start screen to show something happened
-                document.getElementById('start-screen').style.display = 'none';
-            }
-        });
-        
-        // Make resume button work with direct click handler
-        document.getElementById('resume-button').addEventListener('click', function() {
-            console.log("Resume button clicked via direct event listener");
-            if (window.gameControl && window.gameControl.resumeGame) {
-                window.gameControl.resumeGame();
-            } else {
-                console.log("Resume function not available yet");
-                document.getElementById('pause-screen').style.display = 'none';
-            }
-        });
-        
-        // Make restart button work with direct click handler
-        document.getElementById('restart-button').addEventListener('click', function() {
-            console.log("Restart button clicked via direct event listener");
-            if (window.gameControl && window.gameControl.restartGame) {
-                window.gameControl.restartGame();
-            } else {
-                console.log("Restart function not available yet");
-                document.getElementById('game-over-screen').style.display = 'none';
-            }
+            
+            // Hide loading screen after 5 seconds maximum
+            setTimeout(function() {
+                document.getElementById('loading').style.display = 'none';
+            }, 5000);
+            
+            // Create a global bridge function that the module can connect to
+            window.gameControl = {
+                startGame: null,  // Will be filled by the module
+                pauseGame: null,
+                resumeGame: null,
+                restartGame: null
+            };
+            
+            // Make start button work with direct click handler
+            document.getElementById('start-button').addEventListener('click', function() {
+                console.log("Start button clicked via direct event listener");
+                // Try to start the game using the bridge
+                if (window.gameControl && window.gameControl.startGame) {
+                    window.gameControl.startGame();
+                } else {
+                    console.log("Game start function not available yet");
+                    // At least hide the start screen to show something happened
+                    document.getElementById('start-screen').style.display = 'none';
+                }
+            });
+            
+            // Make resume button work with direct click handler
+            document.getElementById('resume-button').addEventListener('click', function() {
+                console.log("Resume button clicked via direct event listener");
+                if (window.gameControl && window.gameControl.resumeGame) {
+                    window.gameControl.resumeGame();
+                } else {
+                    console.log("Resume function not available yet");
+                    document.getElementById('pause-screen').style.display = 'none';
+                }
+            });
+            
+            // Make restart button work with direct click handler
+            document.getElementById('restart-button').addEventListener('click', function() {
+                console.log("Restart button clicked via direct event listener");
+                if (window.gameControl && window.gameControl.restartGame) {
+                    window.gameControl.restartGame();
+                } else {
+                    console.log("Restart function not available yet");
+                    document.getElementById('game-over-screen').style.display = 'none';
+                }
+            });
         });
     </script>
 </body>
