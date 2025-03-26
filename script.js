@@ -130,6 +130,9 @@ const CITY_SIZE = 500; // Size of the city area
 // Add energy conduit width constant
 const ENERGY_CONDUIT_WIDTH = 30; // Width of the energy conduit
 
+// Add building count constant
+const BUILDING_COUNT = 100; // Number of buildings in the cityscape
+
 // Add these variables near the top with other game variables
 let floatingTextPool = []; // Pool of reusable floating text elements
 const FLOATING_TEXT_POOL_SIZE = 10; // Maximum number of floating text elements
