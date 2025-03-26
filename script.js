@@ -133,6 +133,9 @@ const ENERGY_CONDUIT_WIDTH = 30; // Width of the energy conduit
 // Add building count constant
 const BUILDING_COUNT = 100; // Number of buildings in the cityscape
 
+// Add data fragment count constant
+const DATA_FRAGMENT_COUNT = 20; // Number of data fragments to collect in the game
+
 // Add these variables near the top with other game variables
 let floatingTextPool = []; // Pool of reusable floating text elements
 const FLOATING_TEXT_POOL_SIZE = 10; // Maximum number of floating text elements
