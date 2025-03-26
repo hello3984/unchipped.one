@@ -204,6 +204,7 @@ async function initGame() {
         // Set up event listeners - wrap in try/catch to prevent errors
         try {
             setupEventListeners();
+            setupPerformanceDebugKeys(); // Add performance debug keys
         } catch (err) {
             console.error("Error setting up event listeners:", err);
             
@@ -3261,6 +3262,10 @@ function animate() {
     
     // Calculate delta time for smooth animation
     const currentTime = performance.now();
+    
+    // For performance debugging
+    const frameStartTime = performance.now();
+    
     deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
     
     // Calculate and display FPS
@@ -3276,6 +3281,16 @@ function animate() {
             fpsDisplay.style.color = '#ffff00'; // Yellow for acceptable performance
         } else {
             fpsDisplay.style.color = '#ff0000'; // Red for poor performance
+        }
+        
+        // Add detailed timings when performance is low
+        if (fps < 15) {
+            window.perfStats = window.perfStats || {};
+        }
+        
+        // Show performance help when FPS is very low
+        if (fps < 5) {
+            showPerformanceHelp();
         }
     }
     
@@ -3298,12 +3313,20 @@ function animate() {
     projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(projScreenMatrix);
     
+    // Measure time for ship and camera updates
+    const updateStartTime = performance.now();
+    
     // Update player ship movement and camera
     updateShipMovement();
     updateCameraPosition();
     
     // Apply frustum culling to buildings
     applyBuildingFrustumCulling(frustum);
+    
+    const updateEndTime = performance.now();
+    
+    // Measure time for collision and game logic
+    const logicStartTime = performance.now();
     
     // Update drones - only process drones in view frustum
     const playerPos = ship.position.clone();
@@ -3390,6 +3413,19 @@ function animate() {
     checkDroneCollisions();
     checkFragmentCollisions();
     
+    const logicEndTime = performance.now();
+    
+    // Measure projectile update time
+    const projectileStartTime = performance.now();
+    
+    // Update projectiles with frustum culling
+    updateProjectiles();
+    
+    const projectileEndTime = performance.now();
+    
+    // Measure UI update time
+    const uiStartTime = performance.now();
+    
     // Update weapon cooldown indicator
     if (weaponCooldown) {
         const cooldownBar = document.getElementById('cooldown-bar');
@@ -3411,9 +3447,6 @@ function animate() {
         }
     }
     
-    // Update projectiles with frustum culling
-    updateProjectiles();
-    
     // Update debug panel if enabled
     if (debugMode) {
         updateDebugPanel();
@@ -3425,11 +3458,53 @@ function animate() {
     // Update indicators
     updateIndicators();
     
+    const uiEndTime = performance.now();
+    
+    // Measure render time
+    const renderStartTime = performance.now();
+    
     // Render scene
     if (composer && composer.passes.length > 0) {
         composer.render();
     } else {
         renderer.render(scene, camera);
+    }
+    
+    const renderEndTime = performance.now();
+    const frameEndTime = performance.now();
+    
+    // Update performance stats when FPS is low
+    if (fps < 15 && frameEndTime - frameStartTime > 50) {
+        const perfStats = window.perfStats || {};
+        perfStats.total = frameEndTime - frameStartTime;
+        perfStats.update = updateEndTime - updateStartTime;
+        perfStats.logic = logicEndTime - logicStartTime;
+        perfStats.projectiles = projectileEndTime - projectileStartTime;
+        perfStats.ui = uiEndTime - uiStartTime;
+        perfStats.render = renderEndTime - renderStartTime;
+        
+        // Add to debug panel if visible
+        if (debugMode) {
+            const debugPanel = document.getElementById('debug-panel');
+            if (debugPanel) {
+                debugPanel.style.display = 'block';
+                debugPanel.innerHTML = `
+                    <h3>Performance</h3>
+                    <p>Total: ${perfStats.total.toFixed(2)}ms</p>
+                    <p>Update: ${perfStats.update.toFixed(2)}ms</p>
+                    <p>Logic: ${perfStats.logic.toFixed(2)}ms</p>
+                    <p>Projectiles: ${perfStats.projectiles.toFixed(2)}ms</p>
+                    <p>UI: ${perfStats.ui.toFixed(2)}ms</p>
+                    <p>Render: ${perfStats.render.toFixed(2)}ms</p>
+                    <p>Objects: ${scene.children.length}</p>
+                    <p>Drones visible: ${drones.filter(d => d.mesh.visible).length}</p>
+                    <p>Buildings visible: ${buildings.filter(b => b.mesh && b.mesh.visible).length}</p>
+                `;
+            }
+        }
+        
+        // Update the global stats object for reference
+        window.perfStats = perfStats;
     }
 }
 
@@ -4460,5 +4535,72 @@ function applyBuildingFrustumCulling(frustum) {
         
         // Check if building is in view frustum
         building.mesh.visible = frustum.intersectsSphere(boundingSphere);
+    }
+}
+
+// Add debug keys for performance testing
+function setupPerformanceDebugKeys() {
+    // Add to the existing event listeners
+    document.addEventListener('keydown', function(event) {
+        // Only in debug mode or when FPS is very low
+        const fpsElement = document.getElementById('fps-counter');
+        const fps = fpsElement ? parseInt(fpsElement.textContent.replace('FPS: ', '')) || 0 : 0;
+        
+        if (debugMode || fps < 10) {
+            switch(event.key) {
+                case '1':
+                    // Toggle post-processing
+                    if (composer) {
+                        composer.passes.forEach(pass => {
+                            if (pass.enabled !== undefined) {
+                                pass.enabled = !pass.enabled;
+                            }
+                        });
+                        console.log("Post-processing toggled");
+                    }
+                    break;
+                case '2':
+                    // Toggle shadows
+                    scene.traverse(obj => {
+                        if (obj.isMesh) {
+                            obj.castShadow = !obj.castShadow;
+                            obj.receiveShadow = !obj.receiveShadow;
+                        }
+                        if (obj.isLight && obj.shadow) {
+                            obj.castShadow = !obj.castShadow;
+                        }
+                    });
+                    console.log("Shadows toggled");
+                    break;
+                case '3':
+                    // Reduce drone visibility range
+                    window.visibilityRadius = window.visibilityRadius || 150;
+                    window.visibilityRadius = window.visibilityRadius === 150 ? 75 : 150;
+                    console.log("Visibility radius set to:", window.visibilityRadius);
+                    break;
+                case '4': 
+                    // Toggle debug panel with performance stats
+                    const debugPanel = document.getElementById('debug-panel');
+                    if (debugPanel) {
+                        debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
+                    }
+                    debugMode = !debugMode;
+                    console.log("Debug mode:", debugMode);
+                    break;
+            }
+        }
+    });
+}
+
+// Show performance help panel
+function showPerformanceHelp() {
+    const helpPanel = document.getElementById('performance-help');
+    if (helpPanel && helpPanel.style.display !== 'block') {
+        helpPanel.style.display = 'block';
+        
+        // Hide after 15 seconds
+        setTimeout(() => {
+            helpPanel.style.display = 'none';
+        }, 15000);
     }
 }

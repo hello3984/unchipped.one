@@ -185,18 +185,64 @@
             position: fixed;
             top: 50px;
             left: 20px;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.85);
             color: #00ff00;
-            padding: 10px;
+            padding: 15px;
             font-family: monospace;
-            font-size: 12px;
+            font-size: 14px;
             border-radius: 5px;
-            z-index: 100;
-            max-width: 300px;
-            max-height: 300px;
+            z-index: 1000;
+            max-width: 350px;
+            max-height: 500px;
             overflow-y: auto;
-            border: 1px solid #00ff00;
+            border: 2px solid #00ff00;
             display: none;
+        }
+        
+        #debug-panel h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #ffff00;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 5px;
+        }
+        
+        #debug-panel p {
+            margin: 5px 0;
+            border-bottom: 1px dotted rgba(0, 255, 0, 0.3);
+            padding-bottom: 5px;
+        }
+        
+        #performance-help {
+            position: fixed;
+            bottom: 60px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #ffff00;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 1000;
+            border: 1px solid #ffff00;
+            max-width: 350px;
+            display: none;
+        }
+        
+        #performance-help h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #ff9900;
+            border-bottom: 1px solid #ffff00;
+        }
+        
+        #performance-help ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        #performance-help li {
+            margin-bottom: 5px;
         }
         
         #controls-display {
@@ -636,6 +682,17 @@
         <span id="quote-text"></span>
     </div>
     <div id="debug-panel"></div>
+    
+    <div id="performance-help">
+        <h3>Performance Troubleshooting</h3>
+        <ul>
+            <li>Press <strong>1</strong> to toggle post-processing effects</li>
+            <li>Press <strong>2</strong> to toggle shadows</li>
+            <li>Press <strong>3</strong> to reduce visibility radius</li>
+            <li>Press <strong>4</strong> to show detailed performance stats</li>
+        </ul>
+    </div>
+    
     <div id="controls-display">WASD: Move ship | V: Toggle camera view</div>
     
     <div id="left-controls-panel">
