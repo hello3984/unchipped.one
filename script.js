@@ -5056,3 +5056,75 @@ function deactivateProjectile(projectile) {
         projectile.innerCore.visible = false;
     }
 }
+
+// Check for collision between projectile and obstacles (buildings)
+function checkProjectileObstacleCollision(projectile) {
+    if (!projectile.active || !buildings) return false;
+    
+    const projectilePos = projectile.mesh.position;
+    const projectileRadius = projectile.hitboxRadius || 2.0;
+    
+    // Check each building
+    for (const building of buildings) {
+        if (!building.mesh) continue;
+        
+        // Get building bounds
+        const boundingBox = new THREE.Box3().setFromObject(building.mesh);
+        
+        // Expand bounding box by projectile radius for more forgiving collisions
+        boundingBox.min.subScalar(projectileRadius);
+        boundingBox.max.addScalar(projectileRadius);
+        
+        // Check if projectile position is inside expanded bounds
+        if (boundingBox.containsPoint(projectilePos)) {
+            // Create impact effect
+            createEnhancedMuzzleFlash(projectilePos, projectile.direction.clone().multiplyScalar(-1));
+            
+            // Play impact sound
+            playSound('impact');
+            
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Check for collision between projectile and data fragments
+function checkProjectileDataFragmentCollision(projectile) {
+    if (!projectile.active || !dataFragments) return false;
+    
+    const projectilePos = projectile.mesh.position;
+    const projectileRadius = projectile.hitboxRadius || 2.0;
+    
+    // Check each data fragment
+    for (const fragment of dataFragments) {
+        if (!fragment.active || !fragment.mesh) continue;
+        
+        const fragmentPos = fragment.mesh.position;
+        const distance = projectilePos.distanceTo(fragmentPos);
+        
+        // Use a larger radius for data fragments to prevent accidental hits
+        if (distance < (projectileRadius + 5.0)) {
+            // Create warning effect
+            createEnhancedMuzzleFlash(projectilePos, projectile.direction.clone().multiplyScalar(-1));
+            
+            // Play warning sound
+            playSound('warning');
+            
+            // Show warning message
+            const warningText = document.getElementById('warning-text');
+            if (warningText) {
+                warningText.textContent = 'WARNING: DO NOT DESTROY DATA FRAGMENTS';
+                warningText.style.opacity = '1';
+                setTimeout(() => {
+                    warningText.style.opacity = '0';
+                }, 2000);
+            }
+            
+            return true;
+        }
+    }
+    
+    return false;
+}
