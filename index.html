@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>X-Machina: Aurora Prime Explorer - Updated Version</title>
+    <title>X-Machina: Aurora Prime Explorer</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
     <script type="importmap">
         {
@@ -69,27 +69,14 @@
         #score-display {
             position: fixed;
             top: 20px;
-            left: 20px;
-            font-size: 24px;
-            color: #00ffff;
-            text-shadow: 0 0 5px #00ffff;
-            z-index: 50;
-        }
-        
-        #fps-counter {
-            position: fixed;
-            top: 20px;
             right: 20px;
             font-size: 24px;
-            color: #ffff00;
-            text-shadow: 0 0 10px #ffff00, 0 0 20px #ffff00;
-            z-index: 9999;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-weight: bold;
-            border: 2px solid #ffff00;
+            color: #00ffff;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 8px 16px;
+            border-radius: 5px;
+            border: 1px solid #00ffff;
+            z-index: 10;
         }
         
         #health-bar-container {
@@ -169,80 +156,22 @@
             transition: opacity 0.5s ease-in-out;
         }
         
-        .floating-text {
-            font-size: 24px;
-            animation: float-up 1.5s ease-out forwards;
-            text-shadow: 0 0 8px currentColor;
-        }
-        
-        @keyframes float-up {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.5); }
-            100% { transform: scale(1) translateY(-30px); }
-        }
-        
         #debug-panel {
             position: fixed;
             top: 50px;
             left: 20px;
-            background-color: rgba(0, 0, 0, 0.85);
+            background-color: rgba(0, 0, 0, 0.7);
             color: #00ff00;
-            padding: 15px;
-            font-family: monospace;
-            font-size: 14px;
-            border-radius: 5px;
-            z-index: 1000;
-            max-width: 350px;
-            max-height: 500px;
-            overflow-y: auto;
-            border: 2px solid #00ff00;
-            display: none;
-        }
-        
-        #debug-panel h3 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            color: #ffff00;
-            border-bottom: 1px solid #00ff00;
-            padding-bottom: 5px;
-        }
-        
-        #debug-panel p {
-            margin: 5px 0;
-            border-bottom: 1px dotted rgba(0, 255, 0, 0.3);
-            padding-bottom: 5px;
-        }
-        
-        #performance-help {
-            position: fixed;
-            bottom: 60px;
-            left: 20px;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: #ffff00;
             padding: 10px;
-            border-radius: 5px;
             font-family: monospace;
-            font-size: 14px;
-            z-index: 1000;
-            border: 1px solid #ffff00;
-            max-width: 350px;
+            font-size: 12px;
+            border-radius: 5px;
+            z-index: 100;
+            max-width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #00ff00;
             display: none;
-        }
-        
-        #performance-help h3 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            color: #ff9900;
-            border-bottom: 1px solid #ffff00;
-        }
-        
-        #performance-help ul {
-            margin: 0;
-            padding-left: 20px;
-        }
-        
-        #performance-help li {
-            margin-bottom: 5px;
         }
         
         #controls-display {
@@ -638,7 +567,6 @@
         <div id="health-bar"></div>
     </div>
     <div id="score-display">Score: 0</div>
-    <div id="fps-counter">FPS: 0</div>
     <div id="start-screen" class="game-screen">
         <div id="x-machina-logo">
             <h1>X-Machina: The Unchipped One</h1>
@@ -682,17 +610,6 @@
         <span id="quote-text"></span>
     </div>
     <div id="debug-panel"></div>
-    
-    <div id="performance-help">
-        <h3>Performance Troubleshooting</h3>
-        <ul>
-            <li>Press <strong>1</strong> to toggle post-processing effects</li>
-            <li>Press <strong>2</strong> to toggle shadows</li>
-            <li>Press <strong>3</strong> to reduce visibility radius</li>
-            <li>Press <strong>4</strong> to show detailed performance stats</li>
-        </ul>
-    </div>
-    
     <div id="controls-display">WASD: Move ship | V: Toggle camera view</div>
     
     <div id="left-controls-panel">
@@ -768,11 +685,6 @@
         </div>
     </div>
     
-    <div id="overlay-controls">
-        <div id="joystick-left"></div>
-        <div id="joystick-right"></div>
-    </div>
-    
     <script>
         // Add error handling for missing modules
         window.addEventListener('error', function(e) {
@@ -788,45 +700,6 @@
                 <p>Try refreshing the page or check the console for more details.</p>
             `;
         });
-        
-        // Standalone FPS counter (works even if Three.js has issues)
-        (function() {
-            let lastTime = performance.now();
-            let frames = 0;
-            let fps = 0;
-            
-            function updateFPS() {
-                const now = performance.now();
-                frames++;
-                
-                // Update FPS every 500ms
-                if (now >= lastTime + 500) {
-                    fps = Math.round((frames * 1000) / (now - lastTime));
-                    frames = 0;
-                    lastTime = now;
-                    
-                    // Update FPS counter display
-                    const fpsDisplay = document.getElementById('fps-counter');
-                    if (fpsDisplay) {
-                        fpsDisplay.textContent = `FPS: ${fps}`;
-                        
-                        // Color coding based on FPS
-                        if (fps > 45) {
-                            fpsDisplay.style.color = '#ffff00';
-                        } else if (fps > 30) {
-                            fpsDisplay.style.color = '#ff9900';
-                        } else {
-                            fpsDisplay.style.color = '#ff3300';
-                        }
-                    }
-                }
-                
-                requestAnimationFrame(updateFPS);
-            }
-            
-            // Start the FPS counter
-            requestAnimationFrame(updateFPS);
-        })();
         
         // Hide loading screen after 5 seconds maximum
         setTimeout(function() {
