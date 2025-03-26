@@ -119,14 +119,15 @@ let controlPanelVisible = true; // Track if the control panel is visible
 let explosionPool = []; // Pool of reusable explosion objects
 let explosionParticleTexture = null; // Texture for explosion particles
 let dronePool = []; // Pool of reusable drone objects
+let cameraShake = null; // For camera shake effect
 
 // Constants
 const CITY_SIZE = 500;
 const BUILDING_COUNT = 100;
 const DATA_FRAGMENT_COUNT = 20; // Changed from 20 to 30 fragments
 const DRONE_COUNT = 15; // Increased from 10 to 15 - more drones to protect data fragments
-const SHIP_SPEED = 1.5;
-const SHIP_ROTATION_SPEED = 0.05;
+const SHIP_SPEED = 20;
+const SHIP_ROT_SPEED = 2.0;
 const CAMERA_FOLLOW_SPEED = 0.1;
 const DRONE_PATROL_SPEED = 0.3; // Speed when patrolling
 const DRONE_PURSUIT_SPEED = 0.8; // Speed when pursuing player
@@ -135,11 +136,12 @@ const DRONE_COLLISION_DAMAGE = 20; // Damage done by drone collision
 const BUILDING_COLLISION_DAMAGE = 10; // Damage done by building collision
 const DAMAGE_COOLDOWN = 1000; // Milliseconds between damage instances
 const INVINCIBILITY_TIME = 2000; // Milliseconds of invincibility after damage
-const PROJECTILE_SPEED = 100;
+const PROJECTILE_SPEED = 150;
 const PROJECTILE_LIFETIME = 3000; // 3 seconds
 const PROJECTILE_MAX_DISTANCE = 200; // Maximum distance projectiles can travel
-const WEAPON_COOLDOWN_TIME = 500; // 500ms (half second) cooldown between shots
+const WEAPON_COOLDOWN_TIME = 300; // 300ms (half second) cooldown between shots
 const ENERGY_CONDUIT_WIDTH = 30; // Width of the energy conduit
+const PROJECTILE_HITBOX_SIZE = 7.0; // Larger hitbox for easier hits
 
 // Quotes displayed when collecting data fragments
 const DATA_QUOTES = [
@@ -2327,8 +2329,8 @@ function updateShipMovement() {
     const prevPosition = new THREE.Vector3().copy(ship.position);
     
     // Rotation
-    if (moveLeft) ship.rotation.y += SHIP_ROTATION_SPEED;
-    if (moveRight) ship.rotation.y -= SHIP_ROTATION_SPEED;
+    if (moveLeft) ship.rotation.y += SHIP_ROT_SPEED;
+    if (moveRight) ship.rotation.y -= SHIP_ROT_SPEED;
     
     // Reset all velocity components
     velocity.x = 0;
@@ -3215,16 +3217,19 @@ function animate() {
     
     // Update player ship movement and camera
     updateShipMovement();
-        updateCameraPosition();
-        
+    updateCameraPosition();
+    
+    // Apply camera shake if active
+    updateCameraShake();
+    
     // Update drones
-        updateDrones();
-        
+    updateDrones();
+    
     // Check for collisions
     checkBuildingCollisions();
     checkDroneCollisions();
-        checkFragmentCollisions();
-        
+    checkFragmentCollisions();
+    
     // Update weapon cooldown indicator
     if (weaponCooldown) {
         const cooldownBar = document.getElementById('cooldown-bar');
@@ -3245,9 +3250,9 @@ function animate() {
             }
         }
     }
-        
-        // Update projectiles
-        updateProjectiles();
+    
+    // Update projectiles
+    updateProjectiles();
     
     // Update debug panel if enabled
     if (debugMode) {
@@ -3262,8 +3267,8 @@ function animate() {
     
     // Render scene
     if (composer && composer.passes.length > 0) {
-            composer.render();
-        } else {
+        composer.render();
+    } else {
         renderer.render(scene, camera);
     }
 }
@@ -3422,7 +3427,7 @@ function updateIndicators() {
 
 // Initialize the projectile pool
 function initProjectilePool() {
-    console.log("Initializing projectile pool...");
+    console.log("Initializing enhanced projectile pool...");
     projectilePool = [];
     
     // Create fire particle texture if not already created
@@ -3432,39 +3437,63 @@ function initProjectilePool() {
     
     // Create projectiles and add to pool
     for (let i = 0; i < PROJECTILE_POOL_SIZE; i++) {
-        // Create a small core for the projectile
-        const coreGeometry = new THREE.SphereGeometry(0.15, 6, 6);
+        // Create a larger core for the projectile with better material
+        const coreGeometry = new THREE.SphereGeometry(0.4, 10, 10); // Increased from 0.15
         const coreMaterial = new THREE.MeshStandardMaterial({
             color: 0xff3300,
-            emissive: 0xff5500,
-            emissiveIntensity: 3.0,
+            emissive: 0xaa55ff, // Changed to match purple theme
+            emissiveIntensity: 4.0, // Increased intensity
+            metalness: 0.5,
+            roughness: 0.2,
             transparent: true,
-            opacity: 0.8
+            opacity: 0.9
         });
         
         const core = new THREE.Mesh(coreGeometry, coreMaterial);
         
-        // Add a point light to make the projectile glow
-        const projectileLight = new THREE.PointLight(0xff3300, 2, 5);
+        // Add a stronger point light to make the projectile glow
+        const projectileLight = new THREE.PointLight(0xaa55ff, 3, 8); // Increased intensity and range
         projectileLight.position.set(0, 0, 0);
         core.add(projectileLight);
+        
+        // Add a secondary smaller core for depth effect
+        const innerCoreGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+        const innerCoreMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 5.0,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        const innerCore = new THREE.Mesh(innerCoreGeometry, innerCoreMaterial);
+        core.add(innerCore);
         
         // Group the core and fire particles
         const projectileGroup = new THREE.Group();
         projectileGroup.add(core);
         
+        // Create the fire emitter for particle effects
+        const fireEmitter = createFireEmitter();
+        projectileGroup.add(fireEmitter);
+        
+        // Add projectile to scene but make it invisible until activated
+        scene.add(projectileGroup);
+        projectileGroup.visible = false;
+        
         // Create projectile data
         const projectileData = {
             mesh: projectileGroup,
             core: core,
+            innerCore: innerCore,
             light: projectileLight,
-            particleSystem: null, // Will be created when used
-            particles: [],
+            fireEmitter: fireEmitter,
             direction: new THREE.Vector3(), // Initialize direction vector
             speed: PROJECTILE_SPEED,
             distance: 0,
             creationTime: 0,
             lastUpdateTime: 0,
+            hitboxRadius: PROJECTILE_HITBOX_SIZE,
             active: false // Start inactive
         };
         
@@ -3472,7 +3501,7 @@ function initProjectilePool() {
         projectilePool.push(projectileData);
     }
     
-    console.log(`Projectile pool initialized with ${PROJECTILE_POOL_SIZE} projectiles`);
+    console.log(`Enhanced projectile pool initialized with ${PROJECTILE_POOL_SIZE} projectiles`);
 }
 
 // Create a fire emitter for projectiles
@@ -3668,119 +3697,59 @@ function getProjectileFromPool() {
 
 // Fire projectile - shoot from both sides of the ship with enhanced visuals
 function fireProjectile() {
-    if (gameState !== 'playing') return;
+    // Skip if weapon is in cooldown
+    if (weaponCooldown) return;
     
-    // Check cooldown state
-    if (weaponCooldown) {
-        console.log("Weapon in cooldown");
-        return;
+    // Get projectile from pool
+    const projectile = getProjectileFromPool();
+    if (!projectile) return; // No free projectiles available
+    
+    // Set projectile as active and reset lifetime
+    projectile.active = true;
+    projectile.created = Date.now();
+    projectile.mesh.visible = true;
+    
+    // Speed up projectile animation
+    projectile.speed = PROJECTILE_SPEED;
+    
+    // Get the ship's forward direction
+    const direction = new THREE.Vector3(0, 0, -1);
+    direction.applyQuaternion(ship.quaternion);
+    projectile.direction = direction;
+    
+    // Position projectile at the front of the ship
+    const offset = new THREE.Vector3(0, 0, -2.5); // Slightly in front
+    offset.applyQuaternion(ship.quaternion);
+    projectile.mesh.position.copy(ship.position).add(offset);
+    
+    // Rotate projectile to match ship orientation
+    projectile.mesh.quaternion.copy(ship.quaternion);
+    
+    // Activate fire emitter if it exists
+    if (projectile.fireEmitter) {
+        projectile.fireEmitter.visible = true;
+        projectile.fireEmitter.active = true;
     }
     
-    // Create enhanced projectiles
-    try {
-        // Create geometry and material for projectiles with better visuals
-        // INCREASED SIZE from 0.3 to 0.8 for better visibility and collision
-        const projectileGeometry = new THREE.SphereGeometry(0.8, 16, 16);
-        const projectileMaterial = new THREE.MeshStandardMaterial({
-            color: 0x9933ff,
-            emissive: 0xaa55ff,
-            emissiveIntensity: 5.0,
-            metalness: 0.3,
-            roughness: 0.2
-        });
-        
-        // Create projectiles (left and right)
-        const projectile1 = new THREE.Mesh(projectileGeometry, projectileMaterial.clone());
-        const projectile2 = new THREE.Mesh(projectileGeometry, projectileMaterial.clone());
-        
-        // Calculate firing direction (forward direction of ship)
-        const direction = new THREE.Vector3(0, 0, 1);
-        direction.applyQuaternion(ship.quaternion);
-        
-        // Calculate offsets for left and right projectiles
-        const offsetLeft = new THREE.Vector3(-1.5, -0.2, 0.5);
-        offsetLeft.applyQuaternion(ship.quaternion);
-        
-        const offsetRight = new THREE.Vector3(1.5, -0.2, 0.5);
-        offsetRight.applyQuaternion(ship.quaternion);
-        
-        // Position projectiles at ship's position + offset
-        projectile1.position.copy(ship.position).add(offsetLeft);
-        projectile2.position.copy(ship.position).add(offsetRight);
-        
-        // Add to scene
-        scene.add(projectile1);
-        scene.add(projectile2);
-        
-        // Add enhanced glow effect - INCREASED intensity and range
-        const light1 = new THREE.PointLight(0x9933ff, 3, 12);
-        const light2 = new THREE.PointLight(0x9933ff, 3, 12);
-        
-        light1.position.copy(projectile1.position);
-        light2.position.copy(projectile2.position);
-        
-        scene.add(light1);
-        scene.add(light2);
-        
-        // Create compact light flash instead of rectangular flash
-        const flashLight1 = new THREE.PointLight(0xcc77ff, 5, 3);
-        const flashLight2 = new THREE.PointLight(0xcc77ff, 5, 3);
-        
-        flashLight1.position.copy(projectile1.position);
-        flashLight2.position.copy(projectile2.position);
-        
-        scene.add(flashLight1);
-        scene.add(flashLight2);
-        
-        // Remove flash lights after a short time
-        setTimeout(() => {
-            scene.remove(flashLight1);
-            scene.remove(flashLight2);
-        }, 100);
-        
-        // Add trail effect - INCREASED size from 0.2 to 0.5
-        const trail1 = createProjectileTrail();
-        const trail2 = createProjectileTrail();
-        
-        trail1.position.copy(projectile1.position);
-        trail2.position.copy(projectile2.position);
-        
-        scene.add(trail1);
-        scene.add(trail2);
-        
-        // Store projectiles with their properties
-        projectiles.push({
-            mesh: projectile1,
-            light: light1,
-            trail: trail1,
-            direction: direction.clone(),
-            speed: PROJECTILE_SPEED,
-            created: Date.now(),
-            active: true,
-            // Add hitbox radius for collision detection
-            hitboxRadius: 3.0
-        });
-        
-        projectiles.push({
-            mesh: projectile2,
-            light: light2,
-            trail: trail2,
-            direction: direction.clone(),
-            speed: PROJECTILE_SPEED,
-            created: Date.now(),
-            active: true,
-            // Add hitbox radius for collision detection
-            hitboxRadius: 3.0
-        });
-        
-        // Start cooldown - enforce the delay between shots
-        startWeaponCooldown();
-        
-        // Play fire sound
-        playSound('fire');
-        
-    } catch (error) {
-        console.error("Error creating projectiles:", error);
+    // Set the hitbox radius
+    projectile.hitboxRadius = PROJECTILE_HITBOX_SIZE;
+    
+    // Create enhanced muzzle flash
+    createEnhancedMuzzleFlash(ship.position.clone().add(offset), direction);
+    
+    // Play sound effect
+    playSound('laser');
+    
+    // Start weapon cooldown
+    lastFireTime = Date.now();
+    startWeaponCooldown();
+    
+    // Add to active projectiles array
+    projectiles.push(projectile);
+    
+    // Add subtle camera shake for impact
+    if (camera && typeof addCameraShake === 'function') {
+        addCameraShake(0.1, 100);
     }
 }
 
@@ -3903,8 +3872,8 @@ function updateProjectiles() {
 
 // New improved collision detection function
 function checkProjectileDroneCollision(projectile) {
-    // Get the projectile hitbox radius or default to a larger value (5.0)
-    const hitboxRadius = projectile.hitboxRadius || 5.0;
+    // Use configurable hitbox size, defaulting to a larger value for improved hit detection
+    const hitboxRadius = projectile.hitboxRadius || 8.0; // Increased from 5.0
     
     // Store a reference to the projectile position
     const projectilePos = projectile.mesh.position;
@@ -3933,8 +3902,9 @@ function checkProjectileDroneCollision(projectile) {
         // Project this vector onto the projectile direction
         const projectionLength = toDrone.dot(projectile.direction);
         
-        // Only check drones that are in front of the projectile
-        if (projectionLength > 0 && projectionLength < 10) {
+        // Only check drones that are in front of the projectile and within a reasonable distance
+        // Increased from 10 to 15 for longer-range detection
+        if (projectionLength > 0 && projectionLength < 15) {
             // Calculate the closest point on the projectile's path to the drone
             const projectedPoint = new THREE.Vector3()
                 .copy(projectilePos)
@@ -3943,10 +3913,42 @@ function checkProjectileDroneCollision(projectile) {
             // Check distance from this point to the drone
             const perpendicularDistance = projectedPoint.distanceTo(drone.position);
             
-            // If this distance is small enough, we have a hit
-            if (perpendicularDistance < 4.0) {
+            // More forgiving hit detection (increased from 4.0 to 6.0)
+            if (perpendicularDistance < 6.0) {
                 handleDroneHit(drone);
                 return true;
+            }
+        }
+        
+        // METHOD 3: Predictive collision - check if drone will be in the path of the projectile soon
+        // This helps with fast-moving targets
+        if (drone.velocity) {
+            // Predict where the drone will be in the next few frames
+            const predictedPosition = drone.position.clone().add(
+                drone.velocity.clone().multiplyScalar(0.1) // Look 0.1 seconds ahead
+            );
+            
+            // Calculate vector from projectile to predicted drone position
+            const toPredictedPos = new THREE.Vector3().subVectors(predictedPosition, projectilePos);
+            
+            // Project this vector onto the projectile direction
+            const predictedProjLength = toPredictedPos.dot(projectile.direction);
+            
+            // Only check drones that will be in front of the projectile
+            if (predictedProjLength > 0 && predictedProjLength < 20) {
+                // Calculate the closest point on the projectile's path to the predicted drone position
+                const predictedPoint = new THREE.Vector3()
+                    .copy(projectilePos)
+                    .add(projectile.direction.clone().multiplyScalar(predictedProjLength));
+                
+                // Check distance from this point to the predicted drone position
+                const predictedDistance = predictedPoint.distanceTo(predictedPosition);
+                
+                // If this distance is small enough, we have a hit
+                if (predictedDistance < 7.0) {
+                    handleDroneHit(drone);
+                    return true;
+                }
             }
         }
     }
@@ -4903,4 +4905,42 @@ function createTallBuildings() {
     }
     
     console.log("Added tall buildings. Total building count:", buildings.length);
+}
+
+// Add camera shake effect
+function addCameraShake(intensity, duration) {
+    cameraShake = {
+        active: true,
+        intensity: intensity || 0.3,
+        duration: duration || 200,
+        startTime: Date.now(),
+        originalPosition: camera.position.clone()
+    };
+}
+
+// Apply camera shake effect
+function updateCameraShake() {
+    if (!cameraShake || !cameraShake.active) return;
+    
+    const elapsed = Date.now() - cameraShake.startTime;
+    
+    if (elapsed > cameraShake.duration) {
+        // Reset camera position and deactivate shake
+        cameraShake.active = false;
+        return;
+    }
+    
+    // Calculate shake amount based on remaining time (fade out effect)
+    const remaining = 1 - (elapsed / cameraShake.duration);
+    const shakeAmount = cameraShake.intensity * remaining;
+    
+    // Apply random shake to camera
+    const shakeOffsetX = (Math.random() * 2 - 1) * shakeAmount;
+    const shakeOffsetY = (Math.random() * 2 - 1) * shakeAmount;
+    
+    // Apply shake to camera target (affects rotation)
+    if (cameraTarget) {
+        cameraTarget.x += shakeOffsetX * 0.5;
+        cameraTarget.y += shakeOffsetY * 0.5;
+    }
 }
