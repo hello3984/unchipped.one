@@ -514,6 +514,24 @@
             overflow: hidden;
         }
         
+        .pulse-button {
+            animation: pulse 1.5s infinite alternate;
+            position: relative;
+            overflow: hidden;
+            background-color: #ff3366 !important;
+            color: white !important;
+            font-weight: bold;
+            font-size: 22px !important;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.7);
+        }
+        
+        .pulse-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 51, 102, 0.9) !important;
+        }
+        
         #start-screen #start-button:before {
             content: '';
             position: absolute;
@@ -686,6 +704,27 @@
             text-shadow: 0 0 5px #00ffff;
         }
         
+        #mobile-up-down {
+            position: fixed;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            pointer-events: auto;
+        }
+        
+        .action-button.up-button,
+        .action-button.down-button {
+            width: 70px;
+            height: 70px;
+            font-weight: bold;
+            font-size: 18px;
+            border-width: 4px;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
+        }
+        
         .action-button.fire {
             background-color: rgba(255, 51, 102, 0.2);
             border: 3px solid rgba(255, 51, 102, 0.7);
@@ -753,14 +792,15 @@
         
         /* Mobile Responsive Styles */
         @media (max-width: 768px) {
-            /* Show mobile controls on touch devices */
+            /* Show mobile controls on touch devices and ensure they're prominent */
             #mobile-controls {
                 display: block;
+                height: 250px;
             }
             
-            /* Hide keyboard controls on mobile */
+            /* Hide keyboard controls completely on mobile */
             #left-controls-panel {
-                display: none;
+                display: none !important;
             }
             
             /* Make flight indicators smaller on mobile */
@@ -782,26 +822,10 @@
                 padding: 6px 12px;
             }
             
-            /* Adjust game screen text sizes */
-            .game-screen h1 {
-                font-size: 2.2em;
-                text-align: center;
-                margin: 10px 0;
-                padding: 0 15px;
-            }
-            
-            .game-screen p {
-                font-size: 1.2em;
-                margin-bottom: 15px;
-                padding: 0 20px;
-                text-align: center;
-            }
-            
             /* Start screen specifically for mobile */
             #start-screen {
-                padding: 20px 10px;
-                justify-content: flex-start;
-                padding-top: 60px;
+                padding: 15px 10px;
+                text-align: center;
                 overflow-y: auto;
             }
             
@@ -811,11 +835,12 @@
             }
             
             #start-screen p {
-                font-size: 1.2em;
+                font-size: 1.3em;
                 margin-bottom: 12px;
                 padding: 0 10px;
             }
             
+            /* Start screen buttons */
             #start-screen .button-container {
                 width: 100%;
                 flex-direction: column;
@@ -827,16 +852,44 @@
             #game-over-screen button,
             #pause-screen button {
                 margin-bottom: 15px;
-                min-width: 220px;
+                width: 250px;
                 font-size: 1.2em;
-                padding: 12px 5px;
+                padding: 15px 10px;
             }
             
+            .pulse-button {
+                font-size: 24px !important;
+                padding: 18px 10px !important;
+                box-shadow: 0 0 30px rgba(255, 51, 102, 0.9) !important;
+            }
+            
+            /* Larger joystick for better control */
+            #joystick-container {
+                width: 170px;
+                height: 170px;
+                bottom: 40px;
+                left: 30px;
+                border-width: 4px;
+                background-color: rgba(0, 255, 255, 0.2);
+                box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+            }
+            
+            #joystick {
+                width: 80px;
+                height: 80px;
+                box-shadow: 0 0 25px rgba(0, 255, 255, 0.8);
+            }
+            
+            /* Larger fire button for easy tapping */
             .action-button.fire {
+                width: 120px;
+                height: 120px;
+                font-size: 28px;
+                bottom: 40px;
+                right: 30px;
                 background-color: rgba(255, 51, 102, 0.3);
-                border: 3px solid rgba(255, 51, 102, 0.7);
-                font-size: 22px;
-                font-weight: bold;
+                border: 4px solid rgba(255, 51, 102, 0.7);
+                box-shadow: 0 0 25px rgba(255, 51, 102, 0.7);
             }
         }
         
@@ -879,6 +932,41 @@
         @media (max-height: 450px) and (orientation: landscape) {
             #orientation-warning {
                 display: flex;
+                z-index: 3000; /* Ensure it's on top of everything */
+            }
+        }
+        
+        /* Force mobile interface at small screen sizes */
+        @media (max-width: 768px) {
+            body {
+                touch-action: manipulation;
+                -webkit-overflow-scrolling: none;
+                overflow: hidden;
+                position: fixed;
+                width: 100%;
+                height: 100%;
+            }
+            
+            /* Ensure the start screen is always visible initially */
+            #start-screen {
+                display: flex !important; /* Override any JS hide */
+                z-index: 2000;
+            }
+            
+            /* Make health bar more visible */
+            #health-bar-container {
+                top: 15px;
+                left: 15px;
+                height: 25px;
+                border-width: 2px;
+            }
+            
+            /* Make score more visible */
+            #score-display {
+                top: 15px;
+                right: 15px;
+                font-weight: bold;
+                border-width: 2px;
             }
         }
     </style>
@@ -914,7 +1002,7 @@
         <p>COLLECT <span class="data-fragments">COOL BLUE DATA FRAGMENTS</span></p>
         <p>YOU ARE <span class="unchipped">THE UNCHIPPED ONE</span>, THE LAST PERFECT IN HUMANITY</p>
         <div class="button-container">
-            <button id="start-button">START TO GAME</button>
+            <button id="start-button" class="pulse-button">START TO GAME</button>
             <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank">
                 <button class="book-button">DISCOVER THE BOOK</button>
             </a>
@@ -1044,6 +1132,10 @@
         <button id="mobile-pause" class="mobile-pause-button">
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#00ffff"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
         </button>
+        <div id="mobile-up-down">
+            <button class="action-button up-button">UP</button>
+            <button class="action-button down-button">DOWN</button>
+        </div>
     </div>
     
     <script>
@@ -1161,47 +1253,9 @@
             // Add up/down buttons (for 3D movement)
             const actionButtons = document.getElementById('action-buttons');
             
-            // Create Up button
-            const upButton = document.createElement('button');
-            upButton.className = 'action-button';
-            upButton.textContent = 'Up';
-            actionButtons.insertBefore(upButton, fireButton);
-            
-            // Create Down button
-            const downButton = document.createElement('button');
-            downButton.className = 'action-button';
-            downButton.textContent = 'Down';
-            actionButtons.insertBefore(downButton, fireButton);
-            
-            // Camera toggle button
-            const toggleCameraButton = document.getElementById('toggle-camera-view');
-            toggleCameraButton.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                
-                // Simulate V key press to toggle camera view
-                const keydownEvent = new KeyboardEvent('keydown', {
-                    code: 'KeyV',
-                    key: 'v',
-                    bubbles: true
-                });
-                document.dispatchEvent(keydownEvent);
-                
-                // Key up event
-                setTimeout(() => {
-                    const keyupEvent = new KeyboardEvent('keyup', {
-                        code: 'KeyV',
-                        key: 'v',
-                        bubbles: true
-                    });
-                    document.dispatchEvent(keyupEvent);
-                }, 50);
-                
-                // Visual feedback
-                this.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                setTimeout(() => {
-                    this.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                }, 200);
-            });
+            // Create Up button and Down button - We'll use dedicated buttons now
+            const upButton = document.querySelector('.up-button');
+            const downButton = document.querySelector('.down-button');
             
             // Up button events
             upButton.addEventListener('touchstart', function(e) {
@@ -1239,6 +1293,36 @@
                 
                 // Reset visual state
                 this.style.backgroundColor = 'rgba(0, 255, 255, 0.2)';
+            });
+            
+            // Camera toggle button
+            const toggleCameraButton = document.getElementById('toggle-camera-view');
+            toggleCameraButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Simulate V key press to toggle camera view
+                const keydownEvent = new KeyboardEvent('keydown', {
+                    code: 'KeyV',
+                    key: 'v',
+                    bubbles: true
+                });
+                document.dispatchEvent(keydownEvent);
+                
+                // Key up event
+                setTimeout(() => {
+                    const keyupEvent = new KeyboardEvent('keyup', {
+                        code: 'KeyV',
+                        key: 'v',
+                        bubbles: true
+                    });
+                    document.dispatchEvent(keyupEvent);
+                }, 50);
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                setTimeout(() => {
+                    this.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                }, 200);
             });
             
             // Mobile pause button
