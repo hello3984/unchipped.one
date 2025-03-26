@@ -8,26 +8,55 @@ console.log("Script.js loading...");
 import * as THREE from 'three';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 // Import our bridge for connecting to global scope
 import gameBridge from './bridge.js';
 
 // Log that THREE was imported
 console.log("THREE imported:", typeof THREE);
 
-// Try importing fallback modules if needed
-let effectsLoaded = true;
+// Try importing each module separately with error handling
+let EffectComposer, RenderPass, UnrealBloomPass;
 
 try {
-    // Just call initGame directly since we already have the imports
-    initGame();
+    // First try dynamic import
+    Promise.all([
+        import('three/addons/postprocessing/EffectComposer.js'),
+        import('three/addons/postprocessing/RenderPass.js'),
+        import('three/addons/postprocessing/UnrealBloomPass.js')
+    ]).then(([effectComposerModule, renderPassModule, bloomPassModule]) => {
+        console.log("All postprocessing modules loaded successfully");
+        EffectComposer = effectComposerModule.EffectComposer;
+        RenderPass = renderPassModule.RenderPass;
+        UnrealBloomPass = bloomPassModule.UnrealBloomPass;
+        
+        // Initialize the game once imports are complete
+            initGame();
+    }).catch(error => {
+        console.error("Error loading modules dynamically:", error);
+        
+        // Fallback to global scope if modules were loaded via script tags
+        console.log("Trying fallback to global scope...");
+        if (window.THREE) {
+            EffectComposer = window.THREE.EffectComposer;
+            RenderPass = window.THREE.RenderPass;
+            UnrealBloomPass = window.THREE.UnrealBloomPass;
+            
+            if (EffectComposer && RenderPass && UnrealBloomPass) {
+                console.log("Found postprocessing modules in global scope");
+                initGame();
+            } else {
+                // Initialize without postprocessing
+                console.warn("Postprocessing modules not available, initializing without effects");
+                initGame();
+            }
+        } else {
+            console.error("THREE not found in global scope");
+            showLoadingError("THREE.js not found. Check your network connection and try again.");
+        }
+        });
 } catch (error) {
-    console.error("Error initializing game:", error);
-    showLoadingError(`Error initializing game: ${error.message}`);
+    console.error("Critical error setting up module imports:", error);
+    showLoadingError(`Critical error: ${error.message}`);
 }
 
 // Function to show loading error
@@ -184,11 +213,8 @@ async function initGame() {
 
         // Create game elements
         createGround();
-        
-        // Import external city objects before creating cityscape
-        console.log("Loading external city objects from GitHub repositories...");
-        await createCityscape(); // This now internally calls importExternalCityObjects
-        createTallBuildings();
+        createCityscape();
+        createTallBuildings(); // Add 10 additional tall buildings
         
         // Create the X-MACHINA hub
         await createXMachinaHub();
@@ -906,7 +932,7 @@ function createLetterSegments(letter, size) {
 }
 
 // Create cityscape with buildings
-function createBasicCityscape() {
+function createCityscape() {
     console.log("Starting to create cityscape. Building count target:", BUILDING_COUNT);
     buildings = []; // Ensure buildings array is empty before we start
     
@@ -3112,8 +3138,14 @@ function updateDrones() {
 
 // Set up post-processing effects
 function setupPostProcessing() {
+    // Check if EffectComposer and other modules are loaded
+        if (!EffectComposer || !RenderPass || !UnrealBloomPass) {
+        console.warn("Post-processing modules not loaded yet. Skipping post-processing setup.");
+            return;
+        }
+        
     try {
-        // Create composer using the imported EffectComposer
+        // Create composer
         composer = new EffectComposer(renderer);
         
         // Add render pass
@@ -3121,19 +3153,19 @@ function setupPostProcessing() {
         composer.addPass(renderPass);
         
         // Add bloom pass for glow effects
-        const bloomParams = {
+            const bloomParams = {
             threshold: 0.25,
             strength: 0.8,
             radius: 0.5
         };
-        bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(window.innerWidth, window.innerHeight),
-            bloomParams.strength,
-            bloomParams.radius,
-            bloomParams.threshold
-        );
-        composer.addPass(bloomPass);
-        
+            bloomPass = new UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                bloomParams.strength,
+                bloomParams.radius,
+                bloomParams.threshold
+            );
+            composer.addPass(bloomPass);
+            
         console.log("Post-processing setup complete");
     } catch (error) {
         console.error("Error setting up post-processing:", error);
@@ -4842,344 +4874,3 @@ function createTallBuildings() {
     
     console.log("Added tall buildings. Total building count:", buildings.length);
 }
-
-// Import and integrate external city objects
-async function importExternalCityObjects() {
-    console.log("Importing external city objects...");
-    
-    // Create a loading manager to track progress
-    const loadingManager = new THREE.LoadingManager();
-    loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
-        console.log(`Loading city assets: ${itemsLoaded}/${itemsTotal}`);
-    };
-    
-    const textureLoader = new THREE.TextureLoader(loadingManager);
-    const gltfLoader = new THREE.GLTFLoader(loadingManager);
-    
-    // Load modern building textures
-    const buildingTextures = {
-        glass: await textureLoader.loadAsync('https://raw.githubusercontent.com/wisecameron/InfiniteCityThreeJS/main/public/textures/glass.jpg'),
-        concrete: await textureLoader.loadAsync('https://raw.githubusercontent.com/wisecameron/InfiniteCityThreeJS/main/public/textures/concrete.jpg'),
-        metal: await textureLoader.loadAsync('https://raw.githubusercontent.com/wisecameron/InfiniteCityThreeJS/main/public/textures/metal.jpg')
-    };
-    
-    // Create enhanced materials
-    const materials = {
-        glass: new THREE.MeshPhysicalMaterial({
-            map: buildingTextures.glass,
-            transparent: true,
-            opacity: 0.8,
-            metalness: 0.9,
-            roughness: 0.1,
-            envMapIntensity: 1.5,
-            clearcoat: 1.0,
-            clearcoatRoughness: 0.1
-        }),
-        concrete: new THREE.MeshStandardMaterial({
-            map: buildingTextures.concrete,
-            metalness: 0.5,
-            roughness: 0.7
-        }),
-        metal: new THREE.MeshStandardMaterial({
-            map: buildingTextures.metal,
-            metalness: 0.8,
-            roughness: 0.2
-        })
-    };
-    
-    // Load additional city models from GitHub repositories
-    const cityModels = {};
-    
-    try {
-        // Try to load city vehicle models
-        cityModels.vehicle = await gltfLoader.loadAsync(
-            'https://raw.githubusercontent.com/ankitjha2603/3d-city-tour/main/assets/car.glb'
-        );
-        console.log("Loaded vehicle models successfully");
-        
-        // Try to load street furniture (street lights, benches, etc.)
-        cityModels.streetLight = await gltfLoader.loadAsync(
-            'https://raw.githubusercontent.com/ErencanPelin/ThreeJS-City-Builder/main/assets/streetlight.glb'
-        );
-        console.log("Loaded street furniture models successfully");
-        
-        // Try to load advanced building models
-        cityModels.advancedBuilding = await gltfLoader.loadAsync(
-            'https://raw.githubusercontent.com/wisecameron/InfiniteCityThreeJS/main/public/models/building.glb'
-        );
-        console.log("Loaded advanced building models successfully");
-    } catch (error) {
-        console.warn("Could not load some external models:", error);
-        // Continue without the models that failed to load
-    }
-    
-    return {
-        materials,
-        buildingTextures,
-        cityModels
-    };
-}
-
-// Modify createCityscape to use enhanced materials
-async function createCityscape() {
-    console.log("Starting to create enhanced cityscape...");
-    buildings = [];
-    
-    // Import external materials and objects
-    const { materials, cityModels } = await importExternalCityObjects();
-    
-    for (let i = 0; i < BUILDING_COUNT; i++) {
-        // Random building size with more height variation
-        const width = 5 + Math.random() * 15;
-        const height = 10 + Math.random() * 90;
-        const depth = 5 + Math.random() * 15;
-        
-        // Position logic remains the same
-        let x, z;
-        let intersectsConduit = true;
-        let intersectsBuilding = true;
-        let attempts = 0;
-        
-        // Try to find a position that doesn't intersect with the energy conduit or other buildings
-        while ((intersectsConduit || intersectsBuilding) && attempts < 50) {
-            x = Math.random() * CITY_SIZE - CITY_SIZE/2;
-            z = Math.random() * CITY_SIZE - CITY_SIZE/2;
-            
-            // Check if building intersects with the energy conduit corridors
-            intersectsConduit = (
-                // Check intersection with X-axis conduit
-                (z > -ENERGY_CONDUIT_WIDTH/2 && z < ENERGY_CONDUIT_WIDTH/2 && 
-                 x > -CITY_SIZE/2 && x < CITY_SIZE/2) ||
-                // Check intersection with Z-axis conduit
-                (x > -ENERGY_CONDUIT_WIDTH/2 && x < ENERGY_CONDUIT_WIDTH/2 && 
-                 z > -CITY_SIZE/2 && z < CITY_SIZE/2)
-            );
-            
-            // Also account for building width/depth (half dimensions from center point)
-            if (!intersectsConduit) {
-                const halfWidth = width / 2;
-                const halfDepth = depth / 2;
-                
-                intersectsConduit = (
-                    // X-axis conduit intersection with building boundaries
-                    (z + halfDepth > -ENERGY_CONDUIT_WIDTH/2 && z - halfDepth < ENERGY_CONDUIT_WIDTH/2 &&
-                     x > -CITY_SIZE/2 && x < CITY_SIZE/2) ||
-                    // Z-axis conduit intersection with building boundaries  
-                    (x + halfWidth > -ENERGY_CONDUIT_WIDTH/2 && x - halfWidth < ENERGY_CONDUIT_WIDTH/2 &&
-                     z > -CITY_SIZE/2 && z < CITY_SIZE/2)
-                );
-            }
-            
-            // Check if building intersects with existing buildings
-            intersectsBuilding = false;
-            if (!intersectsConduit) {
-                const halfWidth = width / 2;
-                const halfDepth = depth / 2;
-                
-                for (const existingBuilding of buildings) {
-                    const exHalfWidth = existingBuilding.width / 2;
-                    const exHalfDepth = existingBuilding.depth / 2;
-                    
-                    // Check for intersection
-                    if (
-                        x + halfWidth > existingBuilding.x - exHalfWidth &&
-                        x - halfWidth < existingBuilding.x + exHalfWidth &&
-                        z + halfDepth > existingBuilding.z - exHalfDepth &&
-                        z - halfDepth < existingBuilding.z + exHalfDepth
-                    ) {
-                        intersectsBuilding = true;
-                        break;
-                    }
-                }
-            }
-            
-            attempts++;
-        }
-        
-        // Enhanced building creation with modern materials
-        const buildingGroup = new THREE.Group();
-        
-        // Use advanced building model if available, otherwise use basic geometry
-        if (cityModels.advancedBuilding && Math.random() > 0.7) {
-            // Clone and scale the imported model
-            const buildingModel = cityModels.advancedBuilding.scene.clone();
-            buildingModel.scale.set(width/10, height/50, depth/10); // Adjust scale as needed
-            buildingGroup.add(buildingModel);
-        } else {
-            // Main structure with glass facade
-            const mainGeometry = new THREE.BoxGeometry(width, height * 0.9, depth);
-            const mainBuilding = new THREE.Mesh(mainGeometry, materials.glass);
-            buildingGroup.add(mainBuilding);
-            
-            // Concrete core
-            const coreWidth = width * 0.5;
-            const coreDepth = depth * 0.5;
-            const coreGeometry = new THREE.BoxGeometry(coreWidth, height, coreDepth);
-            const coreBuilding = new THREE.Mesh(coreGeometry, materials.concrete);
-            buildingGroup.add(coreBuilding);
-            
-            // Add detailing to the building
-            if (height > 30) {
-                // Add roof details for taller buildings
-                const roofDetailGeometry = new THREE.BoxGeometry(width * 0.7, height * 0.05, depth * 0.7);
-                const roofDetail = new THREE.Mesh(roofDetailGeometry, materials.metal);
-                roofDetail.position.y = height * 0.5;
-                buildingGroup.add(roofDetail);
-            }
-            
-            // Add window lights
-            addWindowsToBuilding(buildingGroup, width, height, depth, windowsMaterial);
-        }
-        
-        // Position the building
-        buildingGroup.position.set(x, height/2, z);
-        
-        // Add random rotation
-        if (Math.random() > 0.7) {
-            buildingGroup.rotation.y = Math.random() * Math.PI * 0.25;
-        }
-        
-        buildingGroup.castShadow = true;
-        buildingGroup.receiveShadow = true;
-        
-        // Save building dimensions and position for collision detection
-        buildings.push({
-            mesh: buildingGroup,
-            width: width,
-            height: height,
-            depth: depth,
-            x: x,
-            z: z
-        });
-        
-        scene.add(buildingGroup);
-    }
-    
-    // Add street lights along the energy conduit if models are available
-    if (cityModels.streetLight) {
-        addStreetLightsToCity(cityModels.streetLight);
-    }
-    
-    // Add moving vehicles if models are available
-    if (cityModels.vehicle) {
-        addVehiclesToCity(cityModels.vehicle);
-    }
-    
-    console.log("Enhanced cityscape creation complete. Building count:", buildings.length);
-}
-
-// Add street lights along the main roads
-function addStreetLightsToCity(streetLightModel) {
-    const spacing = 20; // Distance between street lights
-    
-    // Add lights along the Z-axis conduit
-    for (let z = -CITY_SIZE/2 + spacing; z < CITY_SIZE/2; z += spacing) {
-        // Add streetlights on both sides of the Z-axis
-        addStreetLight(ENERGY_CONDUIT_WIDTH/2 + 2, z, streetLightModel);
-        addStreetLight(-ENERGY_CONDUIT_WIDTH/2 - 2, z, streetLightModel);
-    }
-    
-    // Add lights along the X-axis conduit (for future transit)
-    for (let x = -CITY_SIZE/2 + spacing; x < CITY_SIZE/2; x += spacing) {
-        // Add streetlights on both sides of the X-axis
-        addStreetLight(x, ENERGY_CONDUIT_WIDTH/2 + 2, streetLightModel);
-        addStreetLight(x, -ENERGY_CONDUIT_WIDTH/2 - 2, streetLightModel);
-    }
-}
-
-// Add a single street light at position
-function addStreetLight(x, z, streetLightModel) {
-    const streetLight = streetLightModel.scene.clone();
-    
-    // Scale the street light appropriately
-    streetLight.scale.set(2, 2, 2);
-    
-    // Position the street light
-    streetLight.position.set(x, 0, z);
-    
-    // Rotate to face the road
-    if (Math.abs(x) > Math.abs(z)) {
-        // Light is on north/south side of road
-        streetLight.rotation.y = x > 0 ? Math.PI : 0;
-    } else {
-        // Light is on east/west side of road
-        streetLight.rotation.y = z > 0 ? Math.PI/2 : -Math.PI/2;
-    }
-    
-    // Add light source for the street light
-    const light = new THREE.PointLight(0xffffaa, 1, 15);
-    light.position.y = 7; // Height of light
-    streetLight.add(light);
-    
-    scene.add(streetLight);
-}
-
-// Add vehicles to the city streets
-function addVehiclesToCity(vehicleModel) {
-    const vehicleCount = 10;
-    const vehicles = [];
-    
-    for (let i = 0; i < vehicleCount; i++) {
-        const vehicle = vehicleModel.scene.clone();
-        
-        // Scale the vehicle
-        vehicle.scale.set(0.5, 0.5, 0.5);
-        
-        // Determine if vehicle will be on X or Z axis
-        const onXAxis = Math.random() > 0.5;
-        let x, z;
-        
-        if (onXAxis) {
-            x = Math.random() * CITY_SIZE - CITY_SIZE/2;
-            z = (Math.random() > 0.5 ? 1 : -1) * (ENERGY_CONDUIT_WIDTH/4);
-            vehicle.rotation.y = Math.PI/2 * (Math.random() > 0.5 ? 1 : 3); // East or West
-        } else {
-            x = (Math.random() > 0.5 ? 1 : -1) * (ENERGY_CONDUIT_WIDTH/4);
-            z = Math.random() * CITY_SIZE - CITY_SIZE/2;
-            vehicle.rotation.y = Math.PI/2 * (Math.random() > 0.5 ? 0 : 2); // North or South
-        }
-        
-        vehicle.position.set(x, 0.5, z);
-        scene.add(vehicle);
-        
-        vehicles.push({
-            mesh: vehicle,
-            speed: 0.1 + Math.random() * 0.2,
-            direction: vehicle.rotation.y,
-            onXAxis: onXAxis
-        });
-    }
-    
-    // Animate vehicles
-    function animateVehicles() {
-        for (const vehicle of vehicles) {
-            if (vehicle.onXAxis) {
-                // Move along X axis
-                vehicle.mesh.position.x += Math.cos(vehicle.direction) * vehicle.speed;
-                
-                // Loop around if reached edge of city
-                if (vehicle.mesh.position.x > CITY_SIZE/2) {
-                    vehicle.mesh.position.x = -CITY_SIZE/2;
-                } else if (vehicle.mesh.position.x < -CITY_SIZE/2) {
-                    vehicle.mesh.position.x = CITY_SIZE/2;
-                }
-            } else {
-                // Move along Z axis
-                vehicle.mesh.position.z += Math.sin(vehicle.direction) * vehicle.speed;
-                
-                // Loop around if reached edge of city
-                if (vehicle.mesh.position.z > CITY_SIZE/2) {
-                    vehicle.mesh.position.z = -CITY_SIZE/2;
-                } else if (vehicle.mesh.position.z < -CITY_SIZE/2) {
-                    vehicle.mesh.position.z = CITY_SIZE/2;
-                }
-            }
-        }
-        
-        requestAnimationFrame(animateVehicles);
-    }
-    
-    // Start vehicle animation
-    animateVehicles();
-}
-
