@@ -3523,7 +3523,7 @@ function createFireEmitter() {
         const alphas = new Float32Array(particleCount);
         
         // Initialize particles with zero values
-    for (let i = 0; i < particleCount; i++) {
+        for (let i = 0; i < particleCount; i++) {
             // Initial position at origin
             positions[i * 3] = 0;
             positions[i * 3 + 1] = 0;
@@ -3535,8 +3535,8 @@ function createFireEmitter() {
             colors[i * 3 + 2] = 0.0; // Blue
             
             // Initial size and alpha (invisible)
-        sizes[i] = 0;
-        alphas[i] = 0;
+            sizes[i] = 0;
+            alphas[i] = 0;
         }
         
         // Add attributes to geometry
@@ -3547,33 +3547,33 @@ function createFireEmitter() {
         
         // Create shader material with fire texture
         const particleMaterial = new THREE.ShaderMaterial({
-        uniforms: {
+            uniforms: {
                 texture: { value: fireParticleTexture }
-        },
-        vertexShader: `
-            attribute float size;
-            attribute float alpha;
-            attribute vec3 color;
-            varying float vAlpha;
-            varying vec3 vColor;
-            void main() {
-                vAlpha = alpha;
-                vColor = color;
-                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                gl_PointSize = size * (300.0 / -mvPosition.z);
-                gl_Position = projectionMatrix * mvPosition;
-            }
-        `,
-        fragmentShader: `
+            },
+            vertexShader: `
+                attribute float size;
+                attribute float alpha;
+                attribute vec3 color;
+                varying float vAlpha;
+                varying vec3 vColor;
+                void main() {
+                    vAlpha = alpha;
+                    vColor = color;
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    gl_PointSize = size * (300.0 / -mvPosition.z);
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
                 uniform sampler2D texture;
-            varying float vAlpha;
-            varying vec3 vColor;
-            void main() {
+                varying float vAlpha;
+                varying vec3 vColor;
+                void main() {
                     vec4 texColor = texture2D(texture, gl_PointCoord);
                     gl_FragColor = vec4(vColor, vAlpha) * texColor;
-            }
-        `,
-        blending: THREE.AdditiveBlending,
+                }
+            `,
+            blending: THREE.AdditiveBlending,
             depthWrite: false,
             transparent: true
         });
@@ -3597,16 +3597,15 @@ function createFireEmitter() {
         
         // Add user data to emitter
         emitter.userData = {
-        particles: particles,
-        particleCount: particleCount,
-            lastEmitTime: 0
+            particles: particles,
+            particleCount: particleCount,
+            lastEmitTime: 0,
+            emitterPosition: new THREE.Vector3(), // Store position here instead
+            emitterDirection: new THREE.Vector3(0, 0, -1) // Store direction here
         };
         
-        // Add additional properties
-        emitter.active = false;
-        emitter.direction = new THREE.Vector3(0, 0, -1);
-        emitter.position = new THREE.Vector3();
-        emitter.lastUpdateTime = 0;
+        // Set initial position and direction using the proper Three.js methods
+        emitter.position.set(0, 0, 0);
         
         return emitter;
     } catch (error) {
@@ -3615,14 +3614,12 @@ function createFireEmitter() {
         const dummyGeometry = new THREE.BufferGeometry();
         const dummyMaterial = new THREE.PointsMaterial();
         const dummyEmitter = new THREE.Points(dummyGeometry, dummyMaterial);
-        dummyEmitter.active = false;
-        dummyEmitter.direction = new THREE.Vector3();
-        dummyEmitter.position = new THREE.Vector3();
-        dummyEmitter.lastUpdateTime = 0;
         dummyEmitter.userData = {
             particles: [],
             particleCount: 0,
-            lastEmitTime: 0
+            lastEmitTime: 0,
+            emitterPosition: new THREE.Vector3(),
+            emitterDirection: new THREE.Vector3(0, 0, -1)
         };
         return dummyEmitter;
     }
@@ -3812,61 +3809,111 @@ function updateProjectiles() {
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const projectile = projectiles[i];
         
+        // Skip inactive projectiles
+        if (!projectile.active) continue;
+        
         // Move projectile
-        if (projectile.active) {
-            projectile.mesh.position.x += projectile.direction.x * projectile.speed * deltaTime;
-            projectile.mesh.position.y += projectile.direction.y * projectile.speed * deltaTime;
-            projectile.mesh.position.z += projectile.direction.z * projectile.speed * deltaTime;
+        projectile.mesh.position.x += projectile.direction.x * projectile.speed * deltaTime;
+        projectile.mesh.position.y += projectile.direction.y * projectile.speed * deltaTime;
+        projectile.mesh.position.z += projectile.direction.z * projectile.speed * deltaTime;
+        
+        // Update fire emitter if it exists
+        if (projectile.fireEmitter) {
+            // Update emitter position to match projectile
+            projectile.fireEmitter.position.copy(projectile.mesh.position);
             
-            // Update light position
-            if (projectile.light) {
-                projectile.light.position.copy(projectile.mesh.position);
+            // Update emitter data
+            if (projectile.fireEmitter.userData) {
+                projectile.fireEmitter.userData.emitterPosition.copy(projectile.mesh.position);
+                projectile.fireEmitter.userData.emitterDirection.copy(projectile.direction);
             }
             
-            // Update trail position and orientation
-            if (projectile.trail) {
-                projectile.trail.position.copy(projectile.mesh.position);
-                projectile.trail.lookAt(projectile.mesh.position.clone().sub(projectile.direction));
+            // Update particle system
+            const particleSystem = projectile.fireEmitter;
+            const particles = particleSystem.userData.particles;
+            const positions = particleSystem.geometry.attributes.position.array;
+            const colors = particleSystem.geometry.attributes.color.array;
+            const sizes = particleSystem.geometry.attributes.size.array;
+            const alphas = particleSystem.geometry.attributes.alpha.array;
+            
+            // Update each particle
+            for (let j = 0; j < particles.length; j++) {
+                const particle = particles[j];
+                
+                if (!particle.active) {
+                    // Chance to emit new particle
+                    if (Math.random() < 0.3) {
+                        particle.active = true;
+                        particle.age = 0;
+                        particle.lifetime = 0.5 + Math.random() * 0.5; // 0.5 to 1.0 seconds
+                        particle.position.copy(projectile.mesh.position);
+                        
+                        // Add some random spread to velocity
+                        particle.velocity.copy(projectile.direction)
+                            .multiplyScalar(-1) // Particles move opposite to projectile direction
+                            .add(new THREE.Vector3(
+                                (Math.random() - 0.5) * 0.5,
+                                (Math.random() - 0.5) * 0.5,
+                                (Math.random() - 0.5) * 0.5
+                            ));
+                    }
+                } else {
+                    // Update active particle
+                    particle.age += deltaTime;
+                    
+                    if (particle.age >= particle.lifetime) {
+                        particle.active = false;
+                        continue;
+                    }
+                    
+                    // Update particle position
+                    particle.position.add(particle.velocity.clone().multiplyScalar(deltaTime * 20));
+                    
+                    // Calculate fade
+                    const lifeFactor = 1 - (particle.age / particle.lifetime);
+                    
+                    // Update particle attributes
+                    const idx = j * 3;
+                    positions[idx] = particle.position.x;
+                    positions[idx + 1] = particle.position.y;
+                    positions[idx + 2] = particle.position.z;
+                    
+                    // Fade color from bright to dim
+                    colors[idx] = 1.0;     // Red
+                    colors[idx + 1] = 0.5 * lifeFactor; // Green fades faster
+                    colors[idx + 2] = 0.2 * lifeFactor; // Blue fades faster
+                    
+                    // Size fades out
+                    sizes[j] = (0.5 + Math.random() * 0.5) * lifeFactor;
+                    
+                    // Alpha fades out
+                    alphas[j] = lifeFactor;
+                }
             }
             
-            // Check projectile lifetime
-            const age = currentTime - projectile.created;
-            if (age > PROJECTILE_LIFETIME) {
-                // Remove projectile and light
-                scene.remove(projectile.mesh);
-                if (projectile.light) scene.remove(projectile.light);
-                if (projectile.trail) scene.remove(projectile.trail);
-                
-                // Cleanup
-                if (projectile.mesh.geometry) projectile.mesh.geometry.dispose();
-                if (projectile.mesh.material) projectile.mesh.material.dispose();
-                if (projectile.trail && projectile.trail.geometry) projectile.trail.geometry.dispose();
-                if (projectile.trail && projectile.trail.material) projectile.trail.material.dispose();
-                
-                projectiles.splice(i, 1);
-                continue;
-            }
-            
-            // Modified collision detection using projection-based method
-            let hitDrone = checkProjectileDroneCollision(projectile);
-            
-            // Remove projectile if it hit a drone
-            if (hitDrone) {
-                // Remove projectile
-                scene.remove(projectile.mesh);
-                if (projectile.light) scene.remove(projectile.light);
-                if (projectile.trail) scene.remove(projectile.trail);
-                
-                // Cleanup
-                if (projectile.mesh.geometry) projectile.mesh.geometry.dispose();
-                if (projectile.mesh.material) projectile.mesh.material.dispose();
-                if (projectile.trail && projectile.trail.geometry) projectile.trail.geometry.dispose();
-                if (projectile.trail && projectile.trail.material) projectile.trail.material.dispose();
-                
-                // Remove projectile from array
-            projectiles.splice(i, 1);
+            // Update geometry attributes
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+            particleSystem.geometry.attributes.color.needsUpdate = true;
+            particleSystem.geometry.attributes.size.needsUpdate = true;
+            particleSystem.geometry.attributes.alpha.needsUpdate = true;
         }
-    }
+        
+        // Check lifetime
+        const age = currentTime - projectile.created;
+        if (age > PROJECTILE_LIFETIME) {
+            deactivateProjectile(projectile);
+            projectiles.splice(i, 1);
+            continue;
+        }
+        
+        // Check for collisions
+        if (checkProjectileObstacleCollision(projectile) || 
+            checkProjectileDataFragmentCollision(projectile) ||
+            checkProjectileDroneCollision(projectile)) {
+            deactivateProjectile(projectile);
+            projectiles.splice(i, 1);
+            continue;
+        }
     }
 }
 
@@ -4942,5 +4989,70 @@ function updateCameraShake() {
     if (cameraTarget) {
         cameraTarget.x += shakeOffsetX * 0.5;
         cameraTarget.y += shakeOffsetY * 0.5;
+    }
+}
+
+// Deactivate and clean up a projectile
+function deactivateProjectile(projectile) {
+    if (!projectile) return;
+    
+    // Set as inactive
+    projectile.active = false;
+    
+    // Hide the projectile mesh
+    if (projectile.mesh) {
+        projectile.mesh.visible = false;
+    }
+    
+    // Clean up fire emitter
+    if (projectile.fireEmitter) {
+        projectile.fireEmitter.visible = false;
+        
+        // Reset all particles
+        if (projectile.fireEmitter.userData && projectile.fireEmitter.userData.particles) {
+            const particles = projectile.fireEmitter.userData.particles;
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].active = false;
+            }
+            
+            // Reset particle system attributes
+            const geometry = projectile.fireEmitter.geometry;
+            if (geometry) {
+                const positions = geometry.attributes.position.array;
+                const colors = geometry.attributes.color.array;
+                const sizes = geometry.attributes.size.array;
+                const alphas = geometry.attributes.alpha.array;
+                
+                for (let i = 0; i < particles.length; i++) {
+                    const idx = i * 3;
+                    // Reset position
+                    positions[idx] = 0;
+                    positions[idx + 1] = 0;
+                    positions[idx + 2] = 0;
+                    // Reset color
+                    colors[idx] = 0;
+                    colors[idx + 1] = 0;
+                    colors[idx + 2] = 0;
+                    // Reset size and alpha
+                    sizes[i] = 0;
+                    alphas[i] = 0;
+                }
+                
+                geometry.attributes.position.needsUpdate = true;
+                geometry.attributes.color.needsUpdate = true;
+                geometry.attributes.size.needsUpdate = true;
+                geometry.attributes.alpha.needsUpdate = true;
+            }
+        }
+    }
+    
+    // Turn off lights
+    if (projectile.light) {
+        projectile.light.intensity = 0;
+    }
+    
+    // Reset inner core if it exists
+    if (projectile.innerCore) {
+        projectile.innerCore.visible = false;
     }
 }
