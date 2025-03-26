@@ -19,46 +19,15 @@ import gameBridge from './bridge.js';
 // Log that THREE was imported
 console.log("THREE imported:", typeof THREE);
 
-// Try importing each module separately with error handling
-let RenderPass, UnrealBloomPass;
+// Try importing fallback modules if needed
+let effectsLoaded = true;
 
 try {
-    // First try dynamic import
-    Promise.all([
-        import('three/addons/postprocessing/RenderPass.js'),
-        import('three/addons/postprocessing/UnrealBloomPass.js')
-    ]).then(([renderPassModule, bloomPassModule]) => {
-        console.log("All postprocessing modules loaded successfully");
-        RenderPass = renderPassModule.RenderPass;
-        UnrealBloomPass = bloomPassModule.UnrealBloomPass;
-        
-        // Initialize the game once imports are complete
-            initGame();
-    }).catch(error => {
-        console.error("Error loading modules dynamically:", error);
-        
-        // Fallback to global scope if modules were loaded via script tags
-        console.log("Trying fallback to global scope...");
-        if (window.THREE) {
-            RenderPass = window.THREE.RenderPass;
-            UnrealBloomPass = window.THREE.UnrealBloomPass;
-            
-            if (RenderPass && UnrealBloomPass) {
-                console.log("Found postprocessing modules in global scope");
-                initGame();
-            } else {
-                // Initialize without postprocessing
-                console.warn("Postprocessing modules not available, initializing without effects");
-                initGame();
-            }
-        } else {
-            console.error("THREE not found in global scope");
-            showLoadingError("THREE.js not found. Check your network connection and try again.");
-        }
-        });
+    // Just call initGame directly since we already have the imports
+    initGame();
 } catch (error) {
-    console.error("Critical error setting up module imports:", error);
-    showLoadingError(`Critical error: ${error.message}`);
+    console.error("Error initializing game:", error);
+    showLoadingError(`Error initializing game: ${error.message}`);
 }
 
 // Function to show loading error
@@ -3143,12 +3112,6 @@ function updateDrones() {
 
 // Set up post-processing effects
 function setupPostProcessing() {
-    // Check if RenderPass and UnrealBloomPass modules are loaded
-    if (!RenderPass || !UnrealBloomPass) {
-        console.warn("Post-processing modules not loaded yet. Skipping post-processing setup.");
-        return;
-    }
-    
     try {
         // Create composer using the imported EffectComposer
         composer = new EffectComposer(renderer);
