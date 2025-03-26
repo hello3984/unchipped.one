@@ -460,6 +460,22 @@
             font-size: 0.9rem;
         }
         
+        .mobile-game-option {
+            text-align: center;
+            margin: 30px 0;
+            padding: 15px;
+            border: 1px dashed #00ffff;
+            border-radius: 5px;
+            color: #00ffff;
+            font-size: 0.9rem;
+        }
+        
+        .warning-text {
+            color: #ffcc00;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+        
         /* Animated background elements */
         .mobile-bg-elements {
             position: absolute;
@@ -569,6 +585,29 @@
             }
         }
         
+        #mobile-play-game-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            text-align: center;
+            border-radius: 5px;
+            border: none;
+            background-color: #00ffff;
+            color: #000033;
+            font-weight: bold;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            font-family: 'Orbitron', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #mobile-play-game-button:hover {
+            background-color: #00ccff;
+            transform: scale(1.05);
+        }
+        
         /* Media query for mobile devices */
         @media (max-width: 768px) {
             #mobile-preview {
@@ -578,6 +617,18 @@
             #loading, #game, .game-screen, #left-controls-panel, #debug-panel, 
             #health-container, #cooldown-container, #score-display {
                 display: none !important;
+            }
+            
+            /* For devices in game mode, override styles */
+            body.mobile-game-mode #mobile-preview {
+                display: none !important;
+            }
+            
+            body.mobile-game-mode #loading,
+            body.mobile-game-mode #game,
+            body.mobile-game-mode .game-screen,
+            body.mobile-game-mode #score-display {
+                display: block !important;
             }
         }
     </style>
@@ -617,6 +668,11 @@
             
             <div class="mobile-desktop-message">
                 <p>Experience the full immersive X-MACHINA game on desktop</p>
+            </div>
+            
+            <div class="mobile-game-option">
+                <button id="mobile-play-game-button">PLAY GAME ANYWAY</button>
+                <p class="warning-text">Note: Game is optimized for desktop. Touch controls limited.</p>
             </div>
             
             <!-- Animated background elements -->
@@ -852,21 +908,131 @@
                 if (isMobileDevice()) {
                     console.log("Mobile device detected, showing book preview");
                     
-                    // Show mobile content, hide game content
-                    document.getElementById('mobile-preview').style.display = 'block';
-                    
-                    // Hide game elements
-                    const gameElements = document.querySelectorAll('#loading, #game, .game-screen, #left-controls-panel, #debug-panel, #health-container, #cooldown-container, #score-display');
-                    gameElements.forEach(element => {
-                        if (element) element.style.display = 'none';
-                    });
-                    
-                    // Animate the data fragments
-                    animateDataFragments();
+                    // Only switch to book preview if not already in game mode
+                    if (!document.body.classList.contains('mobile-game-mode')) {
+                        // Show mobile content, hide game content
+                        document.getElementById('mobile-preview').style.display = 'block';
+                        
+                        // Hide game elements
+                        const gameElements = document.querySelectorAll('#loading, #game, .game-screen, #left-controls-panel, #debug-panel, #health-container, #cooldown-container, #score-display');
+                        gameElements.forEach(element => {
+                            if (element) element.style.display = 'none';
+                        });
+                        
+                        // Animate the data fragments
+                        animateDataFragments();
+                    }
                 } else {
                     console.log("Desktop device detected, showing game");
                     document.getElementById('mobile-preview').style.display = 'none';
+                    document.body.classList.remove('mobile-game-mode');
                 }
+            }
+            
+            // Add touch controls for mobile game mode
+            function setupTouchControls() {
+                // Mobile virtual joystick for movement
+                const gameCanvas = document.getElementById('game');
+                if (!gameCanvas) return;
+                
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let isTouching = false;
+                
+                // Touch start - store initial position
+                gameCanvas.addEventListener('touchstart', function(e) {
+                    const touch = e.touches[0];
+                    touchStartX = touch.clientX;
+                    touchStartY = touch.clientY;
+                    isTouching = true;
+                    
+                    // Add firing on double tap
+                    if (e.touches.length === 1 && e.timeStamp - lastTapTime < 300) {
+                        // Simulate F key press for firing
+                        const fireEvent = new KeyboardEvent('keydown', {
+                            code: 'KeyF',
+                            key: 'f',
+                            bubbles: true
+                        });
+                        document.dispatchEvent(fireEvent);
+                        e.preventDefault(); // Prevent zoom
+                    }
+                    lastTapTime = e.timeStamp;
+                });
+                
+                // Touch move - calculate direction
+                gameCanvas.addEventListener('touchmove', function(e) {
+                    if (!isTouching) return;
+                    
+                    const touch = e.touches[0];
+                    const deltaX = touch.clientX - touchStartX;
+                    const deltaY = touch.clientY - touchStartY;
+                    
+                    // Simulate key presses based on touch movement
+                    simulateMovement(deltaX, deltaY);
+                    
+                    e.preventDefault(); // Prevent scrolling
+                });
+                
+                // Touch end - reset
+                gameCanvas.addEventListener('touchend', function(e) {
+                    isTouching = false;
+                    resetMovement();
+                });
+                
+                // For tracking double-taps
+                let lastTapTime = 0;
+                
+                // Prevent pinch zoom on mobile
+                document.addEventListener('gesturestart', function(e) {
+                    e.preventDefault();
+                });
+            }
+            
+            // Simulate keyboard movement from touch input
+            function simulateMovement(deltaX, deltaY) {
+                // Reset all movement keys
+                resetMovement();
+                
+                // Set threshold for movement
+                const threshold = 20;
+                
+                // Horizontal movement
+                if (deltaX < -threshold) {
+                    // Simulate left key
+                    triggerKeyEvent('KeyA', true);
+                } else if (deltaX > threshold) {
+                    // Simulate right key
+                    triggerKeyEvent('KeyD', true);
+                }
+                
+                // Vertical movement
+                if (deltaY < -threshold) {
+                    // Simulate up key
+                    triggerKeyEvent('KeyW', true);
+                } else if (deltaY > threshold) {
+                    // Simulate down key
+                    triggerKeyEvent('KeyS', true);
+                }
+            }
+            
+            // Reset all movement keys
+            function resetMovement() {
+                triggerKeyEvent('KeyW', false);
+                triggerKeyEvent('KeyA', false);
+                triggerKeyEvent('KeyS', false);
+                triggerKeyEvent('KeyD', false);
+            }
+            
+            // Trigger keyboard event
+            function triggerKeyEvent(code, isDown) {
+                const eventType = isDown ? 'keydown' : 'keyup';
+                const event = new KeyboardEvent(eventType, {
+                    code: code,
+                    key: code.charAt(code.length - 1).toLowerCase(),
+                    bubbles: true
+                });
+                document.dispatchEvent(event);
             }
             
             // Animate data fragments with random movements
@@ -879,6 +1045,62 @@
                     fragment.style.left = `${randomX}%`;
                     fragment.style.top = `${randomY}%`;
                 });
+            }
+            
+            // Setup event listener for the play game button
+            const playGameButton = document.getElementById('mobile-play-game-button');
+            if (playGameButton) {
+                playGameButton.addEventListener('click', function() {
+                    console.log("Switching to game mode on mobile");
+                    document.body.classList.add('mobile-game-mode');
+                    document.getElementById('mobile-preview').style.display = 'none';
+                    
+                    // Show game elements
+                    document.getElementById('loading').style.display = 'flex';
+                    document.getElementById('game').style.display = 'block';
+                    document.getElementById('start-screen').style.display = 'flex';
+                    
+                    // Setup touch controls
+                    setupTouchControls();
+                    
+                    // Add a back button to return to book preview
+                    addBackToBookButton();
+                });
+            }
+            
+            // Add a button to go back to book preview
+            function addBackToBookButton() {
+                // Create back button if it doesn't exist
+                if (!document.getElementById('back-to-book-button')) {
+                    const backButton = document.createElement('button');
+                    backButton.id = 'back-to-book-button';
+                    backButton.textContent = 'BACK TO BOOK';
+                    backButton.style.position = 'fixed';
+                    backButton.style.top = '10px';
+                    backButton.style.right = '10px';
+                    backButton.style.zIndex = '2000';
+                    backButton.style.backgroundColor = '#ff3366';
+                    backButton.style.color = '#fff';
+                    backButton.style.border = 'none';
+                    backButton.style.borderRadius = '5px';
+                    backButton.style.padding = '8px 12px';
+                    backButton.style.fontFamily = 'Orbitron, sans-serif';
+                    backButton.style.fontSize = '12px';
+                    
+                    backButton.addEventListener('click', function() {
+                        console.log("Switching back to book preview");
+                        document.body.classList.remove('mobile-game-mode');
+                        document.getElementById('mobile-preview').style.display = 'block';
+                        
+                        // Hide game elements
+                        const gameElements = document.querySelectorAll('#loading, #game, .game-screen, #left-controls-panel, #debug-panel, #health-container, #cooldown-container, #score-display, #back-to-book-button');
+                        gameElements.forEach(element => {
+                            if (element) element.style.display = 'none';
+                        });
+                    });
+                    
+                    document.body.appendChild(backButton);
+                }
             }
             
             // Run check on page load
