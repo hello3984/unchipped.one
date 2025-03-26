@@ -124,6 +124,12 @@ let lastFragmentCollectTime = 0; // Time of last fragment collection
 const MULTIPLIER_DECAY_TIME = 3000; // Time before multiplier starts decreasing (3 seconds)
 const MAX_MULTIPLIER = 5; // Maximum score multiplier
 
+// Add city size constant
+const CITY_SIZE = 500; // Size of the city area
+
+// Add energy conduit width constant
+const ENERGY_CONDUIT_WIDTH = 30; // Width of the energy conduit
+
 // Add these variables near the top with other game variables
 let floatingTextPool = []; // Pool of reusable floating text elements
 const FLOATING_TEXT_POOL_SIZE = 10; // Maximum number of floating text elements
