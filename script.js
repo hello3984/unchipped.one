@@ -20,17 +20,15 @@ import gameBridge from './bridge.js';
 console.log("THREE imported:", typeof THREE);
 
 // Try importing each module separately with error handling
-let EffectComposer, RenderPass, UnrealBloomPass;
+let RenderPass, UnrealBloomPass;
 
 try {
     // First try dynamic import
     Promise.all([
-        import('three/addons/postprocessing/EffectComposer.js'),
         import('three/addons/postprocessing/RenderPass.js'),
         import('three/addons/postprocessing/UnrealBloomPass.js')
-    ]).then(([effectComposerModule, renderPassModule, bloomPassModule]) => {
+    ]).then(([renderPassModule, bloomPassModule]) => {
         console.log("All postprocessing modules loaded successfully");
-        EffectComposer = effectComposerModule.EffectComposer;
         RenderPass = renderPassModule.RenderPass;
         UnrealBloomPass = bloomPassModule.UnrealBloomPass;
         
@@ -42,11 +40,10 @@ try {
         // Fallback to global scope if modules were loaded via script tags
         console.log("Trying fallback to global scope...");
         if (window.THREE) {
-            EffectComposer = window.THREE.EffectComposer;
             RenderPass = window.THREE.RenderPass;
             UnrealBloomPass = window.THREE.UnrealBloomPass;
             
-            if (EffectComposer && RenderPass && UnrealBloomPass) {
+            if (RenderPass && UnrealBloomPass) {
                 console.log("Found postprocessing modules in global scope");
                 initGame();
             } else {
@@ -3146,14 +3143,14 @@ function updateDrones() {
 
 // Set up post-processing effects
 function setupPostProcessing() {
-    // Check if EffectComposer and other modules are loaded
-        if (!EffectComposer || !RenderPass || !UnrealBloomPass) {
+    // Check if RenderPass and UnrealBloomPass modules are loaded
+    if (!RenderPass || !UnrealBloomPass) {
         console.warn("Post-processing modules not loaded yet. Skipping post-processing setup.");
-            return;
-        }
-        
+        return;
+    }
+    
     try {
-        // Create composer
+        // Create composer using the imported EffectComposer
         composer = new EffectComposer(renderer);
         
         // Add render pass
@@ -3161,19 +3158,19 @@ function setupPostProcessing() {
         composer.addPass(renderPass);
         
         // Add bloom pass for glow effects
-            const bloomParams = {
+        const bloomParams = {
             threshold: 0.25,
             strength: 0.8,
             radius: 0.5
         };
-            bloomPass = new UnrealBloomPass(
-                new THREE.Vector2(window.innerWidth, window.innerHeight),
-                bloomParams.strength,
-                bloomParams.radius,
-                bloomParams.threshold
-            );
-            composer.addPass(bloomPass);
-            
+        bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            bloomParams.strength,
+            bloomParams.radius,
+            bloomParams.threshold
+        );
+        composer.addPass(bloomPass);
+        
         console.log("Post-processing setup complete");
     } catch (error) {
         console.error("Error setting up post-processing:", error);
