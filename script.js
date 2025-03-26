@@ -4842,3 +4842,80 @@ function updateVisualEffects() {
         });
     }
 }
+
+// Update height and speed indicators
+function updateIndicators() {
+    if (gameState !== 'playing') return;
+    
+    // Calculate values
+    // Convert to feet (1 meter = 3.28084 feet)
+    const heightInMeters = Math.round(ship.position.y);
+    const heightInFeet = Math.round(heightInMeters * 3.28084);
+    
+    // Calculate speed from velocity (arbitrary scale)
+    const speed = Math.sqrt(
+        velocity.x * velocity.x + 
+        velocity.y * velocity.y + 
+        velocity.z * velocity.z
+    );
+    // Convert to km/h (arbitrary scale factor)
+    const speedInKmh = Math.round(speed * 30);
+    // Convert to mph (1 km/h = 0.621371 mph)
+    const speedInMph = Math.round(speedInKmh * 0.621371);
+    
+    // Update original display in left panel
+    const heightElement = document.getElementById('height-indicator');
+    if (heightElement) {
+        heightElement.textContent = `${heightInMeters} m`;
+    }
+    
+    const speedElement = document.getElementById('speed-indicator');
+    if (speedElement) {
+        speedElement.textContent = `${speedInKmh} km/h`;
+    }
+    
+    // Update advanced flight indicator display
+    const altitudeIndicator = document.getElementById('altitude-indicator');
+    if (altitudeIndicator) {
+        altitudeIndicator.innerHTML = `${heightInFeet}<span class="units">ft</span>`;
+    }
+    
+    const speedIndicatorAdvanced = document.getElementById('speed-indicator-advanced');
+    if (speedIndicatorAdvanced) {
+        speedIndicatorAdvanced.innerHTML = `${speedInMph}<span class="units">mph</span>`;
+    }
+    
+    // Update altitude bar (max height is 120 units = 393.7 feet)
+    const altitudeBar = document.getElementById('altitude-bar');
+    if (altitudeBar) {
+        const maxAltitude = 400; // Max altitude in feet
+        const altitudePercentage = Math.min(100, (heightInFeet / maxAltitude) * 100);
+        altitudeBar.style.width = `${altitudePercentage}%`;
+        
+        // Change color based on altitude
+        if (heightInFeet < 50) {
+            altitudeBar.style.background = 'linear-gradient(to right, #ff3300, #ff6600)'; // Low altitude - orange/red
+        } else if (heightInFeet > 300) {
+            altitudeBar.style.background = 'linear-gradient(to right, #00ff99, #00ffff)'; // High altitude - cyan/green
+        } else {
+            altitudeBar.style.background = 'linear-gradient(to right, #0066ff, #00ffff)'; // Medium altitude - blue/cyan
+        }
+    }
+    
+    // Update speed bar (max speed arbitrarily set to 150 mph)
+    const speedBar = document.getElementById('speed-bar');
+    if (speedBar) {
+        const maxSpeed = 150; // Max speed in mph
+        const speedPercentage = Math.min(100, (speedInMph / maxSpeed) * 100);
+        speedBar.style.width = `${speedPercentage}%`;
+        
+        // Change color based on speed
+        if (speedInMph > 120) {
+            speedBar.style.background = 'linear-gradient(to right, #ff3300, #ff6600)'; // High speed - orange/red
+        } else if (speedInMph > 60) {
+            speedBar.style.background = 'linear-gradient(to right, #ffcc00, #ffff00)'; // Medium speed - yellow
+        } else {
+            speedBar.style.background = 'linear-gradient(to right, #0066ff, #00ffff)'; // Low speed - blue/cyan
+        }
+    }
+}
