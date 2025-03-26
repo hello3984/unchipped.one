@@ -622,11 +622,13 @@
         #mobile-controls {
             display: none; /* Hidden by default */
             position: fixed;
-            bottom: 20px;
+            bottom: 0;
             left: 0;
             width: 100%;
             z-index: 100;
             text-align: center;
+            height: 220px;
+            pointer-events: none; /* Allow click-through but children will capture events */
         }
         
         #joystick-container {
@@ -635,10 +637,11 @@
             left: 30px;
             width: 150px;
             height: 150px;
-            background-color: rgba(0, 255, 255, 0.1);
-            border: 2px solid rgba(0, 255, 255, 0.3);
+            background-color: rgba(0, 255, 255, 0.15);
+            border: 3px solid rgba(0, 255, 255, 0.5);
             border-radius: 50%;
             touch-action: none;
+            pointer-events: auto; /* Enable touch events */
         }
         
         #joystick {
@@ -646,12 +649,13 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 60px;
-            height: 60px;
+            width: 70px;
+            height: 70px;
             background-color: rgba(0, 255, 255, 0.5);
-            border: 2px solid #00ffff;
+            border: 3px solid #00ffff;
             border-radius: 50%;
             touch-action: none;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
         }
         
         #action-buttons {
@@ -660,30 +664,40 @@
             right: 30px;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-gap: 10px;
+            grid-gap: 15px;
+            pointer-events: auto; /* Enable touch events */
         }
         
         .action-button {
-            width: 70px;
-            height: 70px;
+            width: 80px;
+            height: 80px;
             background-color: rgba(0, 255, 255, 0.2);
-            border: 2px solid rgba(0, 255, 255, 0.5);
+            border: 3px solid rgba(0, 255, 255, 0.6);
             border-radius: 50%;
             color: #00ffff;
             font-family: 'Orbitron', sans-serif;
-            font-size: 18px;
+            font-size: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             user-select: none;
             touch-action: none;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            text-shadow: 0 0 5px #00ffff;
         }
         
         .action-button.fire {
             background-color: rgba(255, 51, 102, 0.2);
-            border: 2px solid rgba(255, 51, 102, 0.5);
+            border: 3px solid rgba(255, 51, 102, 0.7);
             color: #ff3366;
             grid-column: span 2;
+            box-shadow: 0 0 15px rgba(255, 51, 102, 0.6);
+            text-shadow: 0 0 8px #ff3366;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+            font-size: 24px;
+            font-weight: bold;
         }
         
         .action-button:active {
@@ -693,23 +707,48 @@
         
         .camera-toggle-button {
             position: fixed;
-            top: 120px;
+            top: 90px;
             right: 20px;
-            width: 48px;
-            height: 48px;
-            background-color: rgba(0, 0, 0, 0.5);
-            border: 2px solid rgba(0, 255, 255, 0.5);
+            width: 55px;
+            height: 55px;
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 3px solid rgba(0, 255, 255, 0.7);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 100;
             touch-action: manipulation;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            pointer-events: auto; /* Enable touch events */
         }
         
         .camera-toggle-button:active {
             transform: scale(0.95);
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        
+        .mobile-pause-button {
+            position: fixed;
+            top: 160px;
+            right: 20px;
+            width: 55px;
+            height: 55px;
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 3px solid rgba(0, 255, 255, 0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            touch-action: manipulation;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            pointer-events: auto; /* Enable touch events */
+        }
+        
+        .mobile-pause-button:active {
+            transform: scale(0.95);
+            background-color: rgba(0, 0, 0, 0.8);
         }
         
         /* Mobile Responsive Styles */
@@ -747,7 +786,7 @@
             .game-screen h1 {
                 font-size: 2.2em;
                 text-align: center;
-                margin: 10px;
+                margin: 10px 0;
                 padding: 0 15px;
             }
             
@@ -758,19 +797,46 @@
                 text-align: center;
             }
             
-            /* Make button container stack vertically on very small screens */
-            @media (max-width: 480px) {
-                .button-container {
-                    flex-direction: column;
-                    align-items: center;
-                }
-                
-                #start-screen button,
-                #game-over-screen button,
-                #pause-screen button {
-                    margin-bottom: 10px;
-                    min-width: 200px;
-                }
+            /* Start screen specifically for mobile */
+            #start-screen {
+                padding: 20px 10px;
+                justify-content: flex-start;
+                padding-top: 60px;
+                overflow-y: auto;
+            }
+            
+            #start-screen h1 {
+                font-size: 2em;
+                margin-bottom: 30px;
+            }
+            
+            #start-screen p {
+                font-size: 1.2em;
+                margin-bottom: 12px;
+                padding: 0 10px;
+            }
+            
+            #start-screen .button-container {
+                width: 100%;
+                flex-direction: column;
+                align-items: center;
+                margin-top: 20px;
+            }
+            
+            #start-screen button,
+            #game-over-screen button,
+            #pause-screen button {
+                margin-bottom: 15px;
+                min-width: 220px;
+                font-size: 1.2em;
+                padding: 12px 5px;
+            }
+            
+            .action-button.fire {
+                background-color: rgba(255, 51, 102, 0.3);
+                border: 3px solid rgba(255, 51, 102, 0.7);
+                font-size: 22px;
+                font-weight: bold;
             }
         }
         
@@ -970,10 +1036,13 @@
             <div id="joystick"></div>
         </div>
         <div id="action-buttons">
-            <button class="action-button fire">Fire</button>
+            <button class="action-button fire">FIRE</button>
         </div>
         <button id="toggle-camera-view" class="camera-toggle-button">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#00ffff"><path d="M3 9h4V5H3v4zm0 5h4v-4H3v4zm5 0h4v-4H8v4zm5 0h4v-4h-4v4zM8 9h4V5H8v4zm5-4v4h4V5h-4zm5 9h4v-4h-4v4zm0 5h4v-4h-4v4zm-5 0h4v-4h-4v4zm-5 0h4v-4H8v4zm-5 0h4v-4H3v4z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#00ffff"><path d="M3 9h4V5H3v4zm0 5h4v-4H3v4zm5 0h4v-4H8v4zm5 0h4v-4h-4v4zM8 9h4V5H8v4zm5-4v4h4V5h-4zm5 9h4v-4h-4v4zm0 5h4v-4h-4v4zm-5 0h4v-4h-4v4zm-5 0h4v-4H8v4zm-5 0h4v-4H3v4z"/></svg>
+        </button>
+        <button id="mobile-pause" class="mobile-pause-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#00ffff"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
         </button>
     </div>
     
@@ -982,8 +1051,19 @@
         console.log("Cache refresh timestamp: ", new Date().toISOString());
         
         // Mobile device detection
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
         console.log("Mobile device detected:", isMobile);
+        
+        // Force mobile mode if screen width is small enough
+        if (window.innerWidth <= 768) {
+            document.getElementById('mobile-controls').style.display = 'block';
+            
+            // Hide desktop controls
+            const desktopControls = document.getElementById('left-controls-panel');
+            if (desktopControls) {
+                desktopControls.style.display = 'none';
+            }
+        }
         
         // Set up orientation change detection
         window.addEventListener('orientationchange', checkOrientation);
@@ -1159,6 +1239,36 @@
                 
                 // Reset visual state
                 this.style.backgroundColor = 'rgba(0, 255, 255, 0.2)';
+            });
+            
+            // Mobile pause button
+            const pauseButton = document.getElementById('mobile-pause');
+            pauseButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Simulate ESC key press to pause game
+                const keydownEvent = new KeyboardEvent('keydown', {
+                    code: 'Escape',
+                    key: 'Escape',
+                    bubbles: true
+                });
+                document.dispatchEvent(keydownEvent);
+                
+                // Key up event
+                setTimeout(() => {
+                    const keyupEvent = new KeyboardEvent('keyup', {
+                        code: 'Escape',
+                        key: 'Escape',
+                        bubbles: true
+                    });
+                    document.dispatchEvent(keyupEvent);
+                }, 50);
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                setTimeout(() => {
+                    this.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+                }, 200);
             });
         }
         
