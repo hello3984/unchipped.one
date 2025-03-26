@@ -10,11 +10,11 @@
             "imports": {
                 "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
                 "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/",
-                "./bridge.js": "./bridge.js"
+                "./bridge.js": "./bridge.js?v=1.1"
             }
         }
     </script>
-    <script type="module" src="script.js"></script>
+    <script type="module" src="script.js?v=1.1"></script>
     <style>
         body {
             margin: 0;
@@ -686,6 +686,9 @@
     </div>
     
     <script>
+        // Force cache refresh with timestamp
+        console.log("Cache refresh timestamp: ", new Date().toISOString());
+        
         // Add error handling for missing modules
         window.addEventListener('error', function(e) {
             console.error('Global error:', e.message);
