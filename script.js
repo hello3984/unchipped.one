@@ -167,150 +167,59 @@ const DATA_QUOTES = [
     "Every simulation contains the seeds of its own reality."
 ];
 
-// Initialize the game - renamed from init() to initGame()
+// Initialize the game
 async function initGame() {
     try {
-        console.log("Initializing game...");
-        
         // Create scene
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000033); // Dark blue background for night sky
-
-        // Add stars to the sky
-        createStars();
         
         // Create camera
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        cameraTarget = new THREE.Vector3();
+        cameraOffset = new THREE.Vector3(0, 5, 15);
         
         // Create renderer
-        renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
+        renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
-        renderer.toneMapping = THREE.ACESFilmicToneMapping; // Better tone mapping
-        renderer.toneMappingExposure = 1.2; // Slightly brighter
+        renderer.setClearColor(0x000000);
+        document.body.appendChild(renderer.domElement);
         
-        // Set up post-processing with EffectComposer
-        setupPostProcessing();
+        // Initialize game components
+        await Promise.all([
+            createStars(),
+            createGround(),
+            createCityscape(),
+            createPlayerShip(),
+            createDataFragments(),
+            createDrones(),
+            initAudio(),
+            setupPostProcessing()
+        ]);
         
-        // Add ambient light
-        const ambientLight = new THREE.AmbientLight(0x333333);
-        scene.add(ambientLight);
+        // Set initial camera position
+        camera.position.copy(ship.position).add(cameraOffset);
+        cameraTarget.copy(ship.position);
+        camera.lookAt(cameraTarget);
         
-        // Add directional light (moonlight)
-        const directionalLight = new THREE.DirectionalLight(0x6666ff, 0.5);
-        directionalLight.position.set(0, 50, 0);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 1024;
-        directionalLight.shadow.mapSize.height = 1024;
-        directionalLight.shadow.camera.near = 10;
-        directionalLight.shadow.camera.far = 200;
-        directionalLight.shadow.camera.left = -100;
-        directionalLight.shadow.camera.right = 100;
-        directionalLight.shadow.camera.top = 100;
-        directionalLight.shadow.camera.bottom = -100;
-        scene.add(directionalLight);
-
-        // Create game elements
-        createGround();
-        createCityscape();
-        createTallBuildings(); // Add 10 additional tall buildings
-        
-        // Create the X-MACHINA hub
-        await createXMachinaHub();
-        
-        // Load saved spaceship quality level or default to 1
-        const savedQualityLevel = parseInt(localStorage.getItem('spaceshipQualityLevel') || '1', 10);
-        createPlayerShip(savedQualityLevel);
-        
-        createDataFragments();
-        createDrones();
-        
-        // Add accent lighting to the scene
-        createAccentLights();
-        
-        // Add neon signs
-        createNeonSigns();
-        
-        // Create UI elements - do this first, before setting up event listeners
+        // Create UI elements
         createHealthBar();
         createDebugPanel();
         createQuoteDisplay();
         
-        // Set up event listeners - wrap in try/catch to prevent errors
-        try {
-            setupEventListeners();
-        } catch (err) {
-            console.error("Error setting up event listeners:", err);
-            
-            // Manual fallback for event listeners
-            console.log("Using fallback method for event listeners");
-            
-            // Manually add event listeners to critical game controls
-            const startButton = document.getElementById('start-button');
-            if (startButton) {
-                startButton.onclick = function() { 
-                    console.log("Start button clicked");
-                    setGameState('playing');
-                };
-            } else {
-                console.warn("Start button not found");
-            }
-            
-            const restartButton = document.getElementById('restart-button');
-            if (restartButton) {
-                restartButton.onclick = function() {
-                    console.log("Restart button clicked");
-                    restartGame();
-                };
-            } else {
-                console.warn("Restart button not found");
-            }
-        }
+        // Setup event listeners
+        setupEventListeners();
         
-        // Initialize projectile pool
-        initProjectilePool();
-        
-        // Initialize explosion pool
-        initExplosionPool();
-        
-        // Initialize drone pool
-        initDronePool();
-        
-        // Initialize audio
-        initAudio();
-        
-        // Set initial game state
-        setGameState('start');
-        
-        // Start animation loop
-        lastFrameTime = performance.now();
+        // Start game loop
         animate();
         
-        // Hide loading screen
-        const loadingElement = document.getElementById('loading');
-        if (loadingElement) {
-            loadingElement.style.display = 'none';
-        }
+        // Set initial game state
+        setGameState('ready');
         
-        console.log("Game initialization complete");
+        console.log("Game initialized successfully");
+        
     } catch (error) {
-        console.error("Game initialization failed:", error);
-        const loadingElement = document.getElementById('loading');
-        if (loadingElement) {
-            loadingElement.style.display = 'none';
-        }
-        
-        const errorDisplay = document.getElementById('error-display');
-        if (errorDisplay) {
-            errorDisplay.style.display = 'block';
-            errorDisplay.innerHTML = `
-                <h2>Error Initializing Game</h2>
-                <p>${error.message}</p>
-                <pre>${error.stack}</pre>
-                <p>Try refreshing the page or check the console for more details.</p>
-            `;
-        }
+        console.error("Error initializing game:", error);
+        showLoadingError(error.message);
     }
 }
 
@@ -4967,7 +4876,7 @@ function addCameraShake(intensity, duration) {
 
 // Apply camera shake effect
 function updateCameraShake() {
-    if (!cameraShake || !cameraShake.active) return;
+    if (!cameraShake || !cameraShake.active || !camera) return;
     
     const elapsed = Date.now() - cameraShake.startTime;
     
@@ -4981,14 +4890,17 @@ function updateCameraShake() {
     const remaining = 1 - (elapsed / cameraShake.duration);
     const shakeAmount = cameraShake.intensity * remaining;
     
-    // Apply random shake to camera
+    // Apply random shake to camera position
     const shakeOffsetX = (Math.random() * 2 - 1) * shakeAmount;
     const shakeOffsetY = (Math.random() * 2 - 1) * shakeAmount;
     
-    // Apply shake to camera target (affects rotation)
-    if (cameraTarget) {
-        cameraTarget.x += shakeOffsetX * 0.5;
-        cameraTarget.y += shakeOffsetY * 0.5;
+    // Apply shake to camera position relative to target
+    if (ship) {
+        cameraTarget.copy(ship.position);
+        camera.position.copy(ship.position)
+            .add(cameraOffset)
+            .add(new THREE.Vector3(shakeOffsetX, shakeOffsetY, 0));
+        camera.lookAt(cameraTarget);
     }
 }
 
