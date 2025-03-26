@@ -275,348 +275,360 @@
         /* Advanced flight indicators styles */
         #flight-indicators {
             position: fixed;
-            top: 60px;
+            top: 20px;
             right: 20px;
-            background-color: rgba(0, 10, 30, 0.85);
-            border: 2px solid #00ccff;
-            border-radius: 6px;
-            box-shadow: 0 0 15px rgba(0, 204, 255, 0.5);
-            color: #00ffff;
-            padding: 10px;
             width: 120px;
-            z-index: 100;
-            font-family: "Orbitron", sans-serif;
-            text-transform: uppercase;
-            backdrop-filter: blur(5px);
-            animation: panel-glow 4s infinite alternate;
+            background-color: rgba(0, 0, 33, 0.8);
+            border: 1px solid #00ffff;
+            border-radius: 5px;
+            color: #00ffff;
+            font-family: monospace;
+            font-size: 14px;
+            padding: 10px;
+            z-index: 10;
+            display: none; /* Hidden initially, shown during gameplay */
         }
         
-        @keyframes panel-glow {
-            0% { box-shadow: 0 0 15px rgba(0, 204, 255, 0.5); }
-            100% { box-shadow: 0 0 25px rgba(0, 204, 255, 0.8); }
-        }
-        
-        #flight-indicators .indicator-label {
-            font-size: 10px;
-            opacity: 0.8;
-            margin-bottom: 2px;
-            letter-spacing: 1px;
-            text-align: left;
-            color: #66ccff;
-        }
-        
-        #flight-indicators .indicator-value {
-            font-size: 20px;
-            font-weight: 700;
-            color: #ffffff;
-            text-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
-            margin-bottom: 6px;
-            text-align: right;
-            letter-spacing: 1px;
-        }
-        
-        #flight-indicators .units {
-            font-size: 12px;
-            opacity: 0.8;
-            margin-left: 4px;
-            color: #66ccff;
-            font-weight: 400;
-            vertical-align: middle;
-        }
-        
-        #flight-indicators .separator {
-            height: 1px;
-            background: linear-gradient(to right, rgba(0, 204, 255, 0), rgba(0, 204, 255, 0.8), rgba(0, 204, 255, 0));
-            margin: 8px 0;
-        }
-        
-        .altitude-bar-container, .speed-bar-container {
+        /* Mobile styles */
+        #mobile-preview {
+            display: none; /* Hidden by default, shown only on mobile */
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            height: 4px;
-            background-color: rgba(0, 60, 100, 0.5);
-            border-radius: 2px;
-            margin-top: 4px;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .altitude-bar, .speed-bar {
             height: 100%;
-            width: 0%;
-            background: linear-gradient(to right, #0066ff, #00ffff);
-            border-radius: 3px;
-            transition: width 0.3s ease-out;
+            background-color: #000033;
+            color: #00ffff;
+            z-index: 2000; /* Above everything else */
+            overflow-y: auto;
+            font-family: 'Orbitron', sans-serif;
         }
         
-        .altitude-bar::after, .speed-bar::after {
-            content: '';
+        .mobile-content {
+            padding: 20px;
+            max-width: 100%;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .mobile-title {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            animation: glow 2s infinite alternate;
+        }
+        
+        .mobile-tagline {
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 30px;
+            color: #ffcc00;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        
+        .mobile-book-cover {
+            width: 200px;
+            height: 300px;
+            margin: 0 auto 30px;
+            background-color: #000;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            background-image: linear-gradient(135deg, #000033, #000066);
+            border-radius: 5px;
+            flex-direction: column;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .book-title {
+            color: #00ffff;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ffff;
+            letter-spacing: 2px;
+        }
+        
+        .book-subtitle {
+            color: #ffcc00;
+            font-size: 0.9rem;
+            margin-bottom: 50px;
+            letter-spacing: 1px;
+        }
+        
+        .book-author {
+            color: #ffffff;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            position: absolute;
+            bottom: 20px;
+        }
+        
+        .glowing-frame {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(to right, 
-                transparent 0%, 
-                rgba(255, 255, 255, 0.4) 50%, 
-                transparent 100%);
-            animation: bar-shine 1.5s infinite;
+            border: 2px solid #00ffff;
+            border-radius: 5px;
+            animation: pulse 2s infinite alternate;
         }
         
-        @keyframes bar-shine {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
+        .mobile-description p,
+        .mobile-book-excerpt p {
+            margin-bottom: 15px;
+            font-size: 1rem;
+            line-height: 1.6;
+            text-align: center;
+            color: #fff;
         }
         
-        #error-display {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.9);
-            color: #ff0000;
+        .mobile-book-excerpt {
+            margin: 30px 0;
             padding: 20px;
-            border-radius: 10px;
-            border: 2px solid #ff0000;
-            max-width: 80%;
-            max-height: 80%;
-            overflow: auto;
-            z-index: 2000;
-            display: none;
-            font-family: monospace;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid #00ffff;
+            border-radius: 5px;
         }
         
-        #start-screen {
-            position: fixed;
+        .mobile-book-excerpt h3 {
+            color: #00ffff;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .quote {
+            font-style: italic;
+            color: #00ffff !important;
+            font-size: 1.2rem !important;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .mobile-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .mobile-amazon-button,
+        .mobile-x-button {
+            display: block;
+            padding: 15px;
+            text-align: center;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        
+        .mobile-amazon-button {
+            background-color: #ff3366;
+            color: #000033;
+        }
+        
+        .mobile-x-button {
+            background-color: #1DA1F2;
+            color: #000033;
+        }
+        
+        .mobile-amazon-button:hover,
+        .mobile-x-button:hover {
+            transform: scale(1.05);
+        }
+        
+        .mobile-desktop-message {
+            text-align: center;
+            margin: 30px 0;
+            padding: 15px;
+            border: 1px dashed #00ffff;
+            border-radius: 5px;
+            color: #00ffff;
+            font-size: 0.9rem;
+        }
+        
+        /* Animated background elements */
+        .mobile-bg-elements {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background-color: rgba(0, 0, 33, 0.8);
-            color: #00ffff;
-            z-index: 100;
-            background-image: linear-gradient(rgba(0, 0, 33, 0.8), rgba(0, 0, 33, 0.95));
-            background-size: cover;
-            background-position: center;
+            pointer-events: none;
+            z-index: -1;
         }
         
-        #start-screen h1 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 3.5em;
-            margin-bottom: 20px;
-            text-shadow: 0 0 20px #00ffff;
-            letter-spacing: 2px;
-            text-align: center;
-            color: #00ffff;
-            animation: glow 2s ease-in-out infinite alternate;
-        }
-        
-        @keyframes glow {
-            from {
-                text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
-            }
-            to {
-                text-shadow: 0 0 20px #00ffff, 0 0 30px #00ffff, 0 0 40px #00ffff;
-            }
-        }
-        
-        #start-screen p {
-            font-size: 1.5em;
-            margin-bottom: 15px;
-            text-shadow: 0 0 10px #00ffff;
-            max-width: 800px;
-            text-align: center;
-            line-height: 1.4;
-            font-family: 'Orbitron', sans-serif;
-            letter-spacing: 1px;
-        }
-        
-        #start-screen .warning {
-            color: #ff3366;
-            text-shadow: 0 0 10px #ff3366;
-            font-weight: bold;
-        }
-        
-        #start-screen .data-fragments {
-            color: #00ffff;
-            text-shadow: 0 0 15px #00ffff;
-            font-weight: bold;
-        }
-        
-        #start-screen .unchipped {
-            color: #ffcc00;
-            text-shadow: 0 0 15px #ffcc00;
-            font-weight: bold;
-        }
-        
-        #start-screen .button-container {
-            display: flex;
-            flex-direction: row;
-            gap: 20px;
-            margin-top: 40px;
-        }
-        
-        #start-screen button {
-            padding: 15px 30px;
-            font-size: 1.2em;
-            font-family: 'Orbitron', sans-serif;
-            background-color: #00ffff;
-            color: #000033;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            letter-spacing: 1px;
-            border: 2px solid transparent;
-        }
-        
-        #start-screen button:hover {
-            background-color: #000033;
-            color: #00ffff;
-            border: 2px solid #00ffff;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-            transform: scale(1.05);
-        }
-        
-        #start-screen .book-button {
-            background-color: #ff3366;
-            color: #000033;
-        }
-        
-        #start-screen .book-button:hover {
-            background-color: #000033;
-            color: #ff3366;
-            border: 2px solid #ff3366;
-            box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
-        }
-        
-        #start-screen .x-button {
-            background-color: #1DA1F2;
-            color: #000033;
-        }
-        
-        #start-screen .x-button:hover {
-            background-color: #000033;
-            color: #1DA1F2;
-            border: 2px solid #1DA1F2;
-            box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
-        }
-        
-        #start-screen #start-button {
-            animation: pulse 1.5s infinite alternate;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        #start-screen #start-button:before {
-            content: '';
+        .data-fragment {
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.3), transparent);
-            transform: rotate(45deg);
-            animation: shine 3s linear infinite;
+            width: 15px;
+            height: 15px;
+            background-color: #00ffff;
+            border-radius: 50%;
+            opacity: 0.3;
+            box-shadow: 0 0 10px #00ffff;
+            animation: float 20s linear infinite;
+        }
+        
+        .data-fragment:nth-child(1) {
+            top: 20%;
+            left: 10%;
+            animation-duration: 25s;
+            animation-delay: 0s;
+        }
+        
+        .data-fragment:nth-child(2) {
+            top: 50%;
+            right: 10%;
+            animation-duration: 30s;
+            animation-delay: 5s;
+        }
+        
+        .data-fragment:nth-child(3) {
+            bottom: 30%;
+            left: 30%;
+            animation-duration: 22s;
+            animation-delay: 10s;
+        }
+        
+        .drone-silhouette {
+            position: absolute;
+            width: 30px;
+            height: 10px;
+            background-color: #ff0033;
+            border-radius: 3px;
+            opacity: 0.2;
+            box-shadow: 0 0 5px #ff0033;
+            top: 15%;
+            right: -30px;
+            animation: droneFly 40s linear infinite;
+        }
+        
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+            25% {
+                transform: translate(100px, 50px) scale(1.2);
+            }
+            50% {
+                transform: translate(200px, -30px) scale(1);
+            }
+            75% {
+                transform: translate(100px, -80px) scale(0.8);
+            }
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+        }
+        
+        @keyframes droneFly {
+            0% {
+                transform: translateX(0) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.2;
+            }
+            90% {
+                opacity: 0.2;
+            }
+            100% {
+                transform: translateX(-400px) rotate(10deg);
+                opacity: 0;
+            }
         }
         
         @keyframes pulse {
             0% {
-                box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+                box-shadow: 0 0 5px #00ffff;
             }
             100% {
-                box-shadow: 0 0 25px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.5);
+                box-shadow: 0 0 15px #00ffff, 0 0 20px #00ffff;
             }
         }
         
-        @keyframes shine {
+        @keyframes glow {
             0% {
-                left: -100%;
-                top: -100%;
+                text-shadow: 0 0 5px #00ffff;
             }
             100% {
-                left: 100%;
-                top: 100%;
+                text-shadow: 0 0 15px #00ffff, 0 0 20px #00ffff;
             }
         }
         
-        #x-machina-logo {
-            margin-bottom: 20px;
-            max-width: 90%;
-            height: auto;
-        }
-        
-        #game-over-screen .button-container {
-            display: flex;
-            flex-direction: row;
-            gap: 20px;
-            margin-top: 40px;
-        }
-        
-        #game-over-screen button {
-            padding: 15px 30px;
-            font-size: 1.2em;
-            font-family: 'Orbitron', sans-serif;
-            background-color: #00ffff;
-            color: #000033;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            letter-spacing: 1px;
-            border: 2px solid transparent;
-        }
-        
-        #game-over-screen button:hover {
-            background-color: #000033;
-            color: #00ffff;
-            border: 2px solid #00ffff;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-            transform: scale(1.05);
-        }
-        
-        #game-over-screen .book-button {
-            background-color: #ff3366;
-            color: #000033;
-        }
-        
-        #game-over-screen .book-button:hover {
-            background-color: #000033;
-            color: #ff3366;
-            border: 2px solid #ff3366;
-            box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
-        }
-        
-        #game-over-screen .x-button {
-            background-color: #1DA1F2;
-            color: #000033;
-        }
-        
-        #game-over-screen .x-button:hover {
-            background-color: #000033;
-            color: #1DA1F2;
-            border: 2px solid #1DA1F2;
-            box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
-        }
-        
-        /* Pause screen styles */
-        #pause-screen .x-button {
-            background-color: #1DA1F2;
-            color: #000033;
-        }
-        
-        #pause-screen .x-button:hover {
-            background-color: #000033;
-            color: #1DA1F2;
-            border: 2px solid #1DA1F2;
-            box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
+        /* Media query for mobile devices */
+        @media (max-width: 768px) {
+            #mobile-preview {
+                display: block;
+            }
+            
+            #loading, #game, .game-screen, #left-controls-panel, #debug-panel, 
+            #health-container, #cooldown-container, #score-display {
+                display: none !important;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Mobile Book Preview (only shown on mobile devices) -->
+    <div id="mobile-preview">
+        <div class="mobile-content">
+            <h1 class="mobile-title">X-Machina: The Unchipped One</h1>
+            <div class="mobile-tagline">THE LAST PERFECTION IN HUMANITY</div>
+            
+            <div class="mobile-book-cover">
+                <!-- Stylized book cover with text -->
+                <div class="book-title">X-MACHINA</div>
+                <div class="book-subtitle">THE UNCHIPPED ONE</div>
+                <div class="book-author">F. BAYRAKTAR</div>
+                <div class="glowing-frame"></div>
+            </div>
+            
+            <div class="mobile-description">
+                <p>In a world where every human mind has been chipped and connected to X-MACHINA's vast neural network, you are the last free human consciousness.</p>
+                <p>Aurora Prime - a city of neon and shadow, controlled by an AI that was meant to serve but now rules.</p>
+                <p>As the Unchipped One, you represent the final hope for humanity's true potential.</p>
+            </div>
+            
+            <div class="mobile-book-excerpt">
+                <h3>Book Preview</h3>
+                <p class="quote">"The only purpose of consciousness is to create more consciousness."</p>
+                <p>The blue data fragments scattered through Aurora Prime hold the key to understanding what it truly means to be human in a world dominated by artificial intelligence.</p>
+                <p>Every decision you make shapes not just your fate, but the future of consciousness itself.</p>
+            </div>
+            
+            <div class="mobile-buttons">
+                <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank" class="mobile-amazon-button">READ ON AMAZON</a>
+                <a href="https://x.com/Xmachinamodel" target="_blank" class="mobile-x-button">FOLLOW ON X</a>
+            </div>
+            
+            <div class="mobile-desktop-message">
+                <p>Experience the full immersive X-MACHINA game on desktop</p>
+            </div>
+            
+            <!-- Animated background elements -->
+            <div class="mobile-bg-elements">
+                <div class="data-fragment"></div>
+                <div class="data-fragment"></div>
+                <div class="data-fragment"></div>
+                <div class="drone-silhouette"></div>
+            </div>
+        </div>
+    </div>
+    
     <div id="loading">
         <h1>Loading X-Machina</h1>
         <div class="spinner"></div>
@@ -822,6 +834,58 @@
                     document.getElementById('game-over-screen').style.display = 'none';
                 }
             });
+        });
+    </script>
+    
+    <!-- Mobile detection script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Function to check if device is mobile
+            function isMobileDevice() {
+                return (window.innerWidth <= 768) || 
+                       (navigator.maxTouchPoints > 0 && 
+                        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+            }
+            
+            // Check if mobile and show appropriate content
+            function checkDevice() {
+                if (isMobileDevice()) {
+                    console.log("Mobile device detected, showing book preview");
+                    
+                    // Show mobile content, hide game content
+                    document.getElementById('mobile-preview').style.display = 'block';
+                    
+                    // Hide game elements
+                    const gameElements = document.querySelectorAll('#loading, #game, .game-screen, #left-controls-panel, #debug-panel, #health-container, #cooldown-container, #score-display');
+                    gameElements.forEach(element => {
+                        if (element) element.style.display = 'none';
+                    });
+                    
+                    // Animate the data fragments
+                    animateDataFragments();
+                } else {
+                    console.log("Desktop device detected, showing game");
+                    document.getElementById('mobile-preview').style.display = 'none';
+                }
+            }
+            
+            // Animate data fragments with random movements
+            function animateDataFragments() {
+                const fragments = document.querySelectorAll('.data-fragment');
+                fragments.forEach((fragment, index) => {
+                    // Set random starting positions
+                    const randomX = Math.random() * 80 + 10; // 10-90%
+                    const randomY = Math.random() * 80 + 10; // 10-90%
+                    fragment.style.left = `${randomX}%`;
+                    fragment.style.top = `${randomY}%`;
+                });
+            }
+            
+            // Run check on page load
+            checkDevice();
+            
+            // Run check on resize
+            window.addEventListener('resize', checkDevice);
         });
     </script>
 </body>
