@@ -8,6 +8,11 @@ console.log("Script.js loading...");
 import * as THREE from 'three';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 // Import our bridge for connecting to global scope
 import gameBridge from './bridge.js';
 
@@ -119,15 +124,14 @@ let controlPanelVisible = true; // Track if the control panel is visible
 let explosionPool = []; // Pool of reusable explosion objects
 let explosionParticleTexture = null; // Texture for explosion particles
 let dronePool = []; // Pool of reusable drone objects
-let cameraShake = null; // For camera shake effect
 
 // Constants
 const CITY_SIZE = 500;
 const BUILDING_COUNT = 100;
 const DATA_FRAGMENT_COUNT = 20; // Changed from 20 to 30 fragments
 const DRONE_COUNT = 15; // Increased from 10 to 15 - more drones to protect data fragments
-const SHIP_SPEED = 20;
-const SHIP_ROT_SPEED = 2.0;
+const SHIP_SPEED = 1.5;
+const SHIP_ROTATION_SPEED = 0.05;
 const CAMERA_FOLLOW_SPEED = 0.1;
 const DRONE_PATROL_SPEED = 0.3; // Speed when patrolling
 const DRONE_PURSUIT_SPEED = 0.8; // Speed when pursuing player
@@ -136,12 +140,13 @@ const DRONE_COLLISION_DAMAGE = 20; // Damage done by drone collision
 const BUILDING_COLLISION_DAMAGE = 10; // Damage done by building collision
 const DAMAGE_COOLDOWN = 1000; // Milliseconds between damage instances
 const INVINCIBILITY_TIME = 2000; // Milliseconds of invincibility after damage
-const PROJECTILE_SPEED = 150;
+const PROJECTILE_SPEED = 100; // Reduced from 150 to make hits more reliable
 const PROJECTILE_LIFETIME = 3000; // 3 seconds
 const PROJECTILE_MAX_DISTANCE = 200; // Maximum distance projectiles can travel
-const WEAPON_COOLDOWN_TIME = 300; // 300ms (half second) cooldown between shots
+const WEAPON_COOLDOWN_TIME = 300; // Reduced for better responsiveness
 const ENERGY_CONDUIT_WIDTH = 30; // Width of the energy conduit
-const PROJECTILE_HITBOX_SIZE = 7.0; // Larger hitbox for easier hits
+const PROJECTILE_SPREAD = 0.1; // New constant for projectile spread
+const PROJECTILE_HITBOX_RADIUS = 8.0; // Increased hitbox for better hit detection
 
 // Quotes displayed when collecting data fragments
 const DATA_QUOTES = [
@@ -167,59 +172,153 @@ const DATA_QUOTES = [
     "Every simulation contains the seeds of its own reality."
 ];
 
-// Initialize the game
+// Initialize the game - renamed from init() to initGame()
 async function initGame() {
     try {
+        console.log("Initializing game...");
+        
         // Create scene
         scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000033); // Dark blue background for night sky
+
+        // Add stars to the sky
+        createStars();
         
         // Create camera
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        cameraTarget = new THREE.Vector3();
-        cameraOffset = new THREE.Vector3(0, 5, 15);
         
         // Create renderer
-        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setClearColor(0x000000);
-        document.body.appendChild(renderer.domElement);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; // Better tone mapping
+        renderer.toneMappingExposure = 1.2; // Slightly brighter
         
-        // Initialize game components
-        await Promise.all([
-            createStars(),
-            createGround(),
-            createCityscape(),
-            createPlayerShip(),
-            createDataFragments(),
-            createDrones(),
-            initAudio(),
-            setupPostProcessing()
-        ]);
+        // Set up post-processing with EffectComposer
+        setupPostProcessing();
         
-        // Set initial camera position
-        camera.position.copy(ship.position).add(cameraOffset);
-        cameraTarget.copy(ship.position);
-        camera.lookAt(cameraTarget);
+        // Add ambient light
+        const ambientLight = new THREE.AmbientLight(0x333333);
+        scene.add(ambientLight);
         
-        // Create UI elements
+        // Add directional light (moonlight)
+        const directionalLight = new THREE.DirectionalLight(0x6666ff, 0.5);
+        directionalLight.position.set(0, 50, 0);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+        directionalLight.shadow.camera.near = 10;
+        directionalLight.shadow.camera.far = 200;
+        directionalLight.shadow.camera.left = -100;
+        directionalLight.shadow.camera.right = 100;
+        directionalLight.shadow.camera.top = 100;
+        directionalLight.shadow.camera.bottom = -100;
+        scene.add(directionalLight);
+
+        // Create game elements
+        createGround();
+        
+        // Import external city objects before creating cityscape
+        console.log("Loading external city objects from GitHub repositories...");
+        await createCityscape(); // This now internally calls importExternalCityObjects
+        createTallBuildings();
+        
+        // Create the X-MACHINA hub
+        await createXMachinaHub();
+        
+        // Load saved spaceship quality level or default to 1
+        const savedQualityLevel = parseInt(localStorage.getItem('spaceshipQualityLevel') || '1', 10);
+        createPlayerShip(savedQualityLevel);
+        
+        createDataFragments();
+        createDrones();
+        
+        // Add accent lighting to the scene
+        createAccentLights();
+        
+        // Add neon signs
+        createNeonSigns();
+        
+        // Create UI elements - do this first, before setting up event listeners
         createHealthBar();
         createDebugPanel();
         createQuoteDisplay();
         
-        // Setup event listeners
-        setupEventListeners();
+        // Set up event listeners - wrap in try/catch to prevent errors
+        try {
+            setupEventListeners();
+        } catch (err) {
+            console.error("Error setting up event listeners:", err);
+            
+            // Manual fallback for event listeners
+            console.log("Using fallback method for event listeners");
+            
+            // Manually add event listeners to critical game controls
+            const startButton = document.getElementById('start-button');
+            if (startButton) {
+                startButton.onclick = function() { 
+                    console.log("Start button clicked");
+                    setGameState('playing');
+                };
+            } else {
+                console.warn("Start button not found");
+            }
+            
+            const restartButton = document.getElementById('restart-button');
+            if (restartButton) {
+                restartButton.onclick = function() {
+                    console.log("Restart button clicked");
+                    restartGame();
+                };
+            } else {
+                console.warn("Restart button not found");
+            }
+        }
         
-        // Start game loop
-        animate();
+        // Initialize projectile pool
+        initProjectilePool();
+        
+        // Initialize explosion pool
+        initExplosionPool();
+        
+        // Initialize drone pool
+        initDronePool();
+        
+        // Initialize audio
+        initAudio();
         
         // Set initial game state
-        setGameState('ready');
+        setGameState('start');
         
-        console.log("Game initialized successfully");
+        // Start animation loop
+        lastFrameTime = performance.now();
+        animate();
         
+        // Hide loading screen
+        const loadingElement = document.getElementById('loading');
+        if (loadingElement) {
+            loadingElement.style.display = 'none';
+        }
+        
+        console.log("Game initialization complete");
     } catch (error) {
-        console.error("Error initializing game:", error);
-        showLoadingError(error.message);
+        console.error("Game initialization failed:", error);
+        const loadingElement = document.getElementById('loading');
+        if (loadingElement) {
+            loadingElement.style.display = 'none';
+        }
+        
+        const errorDisplay = document.getElementById('error-display');
+        if (errorDisplay) {
+            errorDisplay.style.display = 'block';
+            errorDisplay.innerHTML = `
+                <h2>Error Initializing Game</h2>
+                <p>${error.message}</p>
+                <pre>${error.stack}</pre>
+                <p>Try refreshing the page or check the console for more details.</p>
+            `;
+        }
     }
 }
 
@@ -2238,8 +2337,8 @@ function updateShipMovement() {
     const prevPosition = new THREE.Vector3().copy(ship.position);
     
     // Rotation
-    if (moveLeft) ship.rotation.y += SHIP_ROT_SPEED;
-    if (moveRight) ship.rotation.y -= SHIP_ROT_SPEED;
+    if (moveLeft) ship.rotation.y += SHIP_ROTATION_SPEED;
+    if (moveRight) ship.rotation.y -= SHIP_ROTATION_SPEED;
     
     // Reset all velocity components
     velocity.x = 0;
@@ -3126,19 +3225,16 @@ function animate() {
     
     // Update player ship movement and camera
     updateShipMovement();
-    updateCameraPosition();
-    
-    // Apply camera shake if active
-    updateCameraShake();
-    
+        updateCameraPosition();
+        
     // Update drones
-    updateDrones();
-    
+        updateDrones();
+        
     // Check for collisions
     checkBuildingCollisions();
     checkDroneCollisions();
-    checkFragmentCollisions();
-    
+        checkFragmentCollisions();
+        
     // Update weapon cooldown indicator
     if (weaponCooldown) {
         const cooldownBar = document.getElementById('cooldown-bar');
@@ -3159,9 +3255,9 @@ function animate() {
             }
         }
     }
-    
-    // Update projectiles
-    updateProjectiles();
+        
+        // Update projectiles
+        updateProjectiles();
     
     // Update debug panel if enabled
     if (debugMode) {
@@ -3176,8 +3272,8 @@ function animate() {
     
     // Render scene
     if (composer && composer.passes.length > 0) {
-        composer.render();
-    } else {
+            composer.render();
+        } else {
         renderer.render(scene, camera);
     }
 }
@@ -3336,7 +3432,7 @@ function updateIndicators() {
 
 // Initialize the projectile pool
 function initProjectilePool() {
-    console.log("Initializing enhanced projectile pool...");
+    console.log("Initializing projectile pool...");
     projectilePool = [];
     
     // Create fire particle texture if not already created
@@ -3346,63 +3442,39 @@ function initProjectilePool() {
     
     // Create projectiles and add to pool
     for (let i = 0; i < PROJECTILE_POOL_SIZE; i++) {
-        // Create a larger core for the projectile with better material
-        const coreGeometry = new THREE.SphereGeometry(0.4, 10, 10); // Increased from 0.15
+        // Create a small core for the projectile
+        const coreGeometry = new THREE.SphereGeometry(0.15, 6, 6);
         const coreMaterial = new THREE.MeshStandardMaterial({
             color: 0xff3300,
-            emissive: 0xaa55ff, // Changed to match purple theme
-            emissiveIntensity: 4.0, // Increased intensity
-            metalness: 0.5,
-            roughness: 0.2,
+            emissive: 0xff5500,
+            emissiveIntensity: 3.0,
             transparent: true,
-            opacity: 0.9
+            opacity: 0.8
         });
         
         const core = new THREE.Mesh(coreGeometry, coreMaterial);
         
-        // Add a stronger point light to make the projectile glow
-        const projectileLight = new THREE.PointLight(0xaa55ff, 3, 8); // Increased intensity and range
+        // Add a point light to make the projectile glow
+        const projectileLight = new THREE.PointLight(0xff3300, 2, 5);
         projectileLight.position.set(0, 0, 0);
         core.add(projectileLight);
-        
-        // Add a secondary smaller core for depth effect
-        const innerCoreGeometry = new THREE.SphereGeometry(0.2, 8, 8);
-        const innerCoreMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            emissive: 0xffffff,
-            emissiveIntensity: 5.0,
-            transparent: true,
-            opacity: 0.9
-        });
-        
-        const innerCore = new THREE.Mesh(innerCoreGeometry, innerCoreMaterial);
-        core.add(innerCore);
         
         // Group the core and fire particles
         const projectileGroup = new THREE.Group();
         projectileGroup.add(core);
         
-        // Create the fire emitter for particle effects
-        const fireEmitter = createFireEmitter();
-        projectileGroup.add(fireEmitter);
-        
-        // Add projectile to scene but make it invisible until activated
-        scene.add(projectileGroup);
-        projectileGroup.visible = false;
-        
         // Create projectile data
         const projectileData = {
             mesh: projectileGroup,
             core: core,
-            innerCore: innerCore,
             light: projectileLight,
-            fireEmitter: fireEmitter,
+            particleSystem: null, // Will be created when used
+            particles: [],
             direction: new THREE.Vector3(), // Initialize direction vector
             speed: PROJECTILE_SPEED,
             distance: 0,
             creationTime: 0,
             lastUpdateTime: 0,
-            hitboxRadius: PROJECTILE_HITBOX_SIZE,
             active: false // Start inactive
         };
         
@@ -3410,7 +3482,7 @@ function initProjectilePool() {
         projectilePool.push(projectileData);
     }
     
-    console.log(`Enhanced projectile pool initialized with ${PROJECTILE_POOL_SIZE} projectiles`);
+    console.log(`Projectile pool initialized with ${PROJECTILE_POOL_SIZE} projectiles`);
 }
 
 // Create a fire emitter for projectiles
@@ -3432,7 +3504,7 @@ function createFireEmitter() {
         const alphas = new Float32Array(particleCount);
         
         // Initialize particles with zero values
-        for (let i = 0; i < particleCount; i++) {
+    for (let i = 0; i < particleCount; i++) {
             // Initial position at origin
             positions[i * 3] = 0;
             positions[i * 3 + 1] = 0;
@@ -3444,8 +3516,8 @@ function createFireEmitter() {
             colors[i * 3 + 2] = 0.0; // Blue
             
             // Initial size and alpha (invisible)
-            sizes[i] = 0;
-            alphas[i] = 0;
+        sizes[i] = 0;
+        alphas[i] = 0;
         }
         
         // Add attributes to geometry
@@ -3456,33 +3528,33 @@ function createFireEmitter() {
         
         // Create shader material with fire texture
         const particleMaterial = new THREE.ShaderMaterial({
-            uniforms: {
+        uniforms: {
                 texture: { value: fireParticleTexture }
-            },
-            vertexShader: `
-                attribute float size;
-                attribute float alpha;
-                attribute vec3 color;
-                varying float vAlpha;
-                varying vec3 vColor;
-                void main() {
-                    vAlpha = alpha;
-                    vColor = color;
-                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                    gl_PointSize = size * (300.0 / -mvPosition.z);
-                    gl_Position = projectionMatrix * mvPosition;
-                }
-            `,
-            fragmentShader: `
+        },
+        vertexShader: `
+            attribute float size;
+            attribute float alpha;
+            attribute vec3 color;
+            varying float vAlpha;
+            varying vec3 vColor;
+            void main() {
+                vAlpha = alpha;
+                vColor = color;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = size * (300.0 / -mvPosition.z);
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `,
+        fragmentShader: `
                 uniform sampler2D texture;
-                varying float vAlpha;
-                varying vec3 vColor;
-                void main() {
+            varying float vAlpha;
+            varying vec3 vColor;
+            void main() {
                     vec4 texColor = texture2D(texture, gl_PointCoord);
                     gl_FragColor = vec4(vColor, vAlpha) * texColor;
-                }
-            `,
-            blending: THREE.AdditiveBlending,
+            }
+        `,
+        blending: THREE.AdditiveBlending,
             depthWrite: false,
             transparent: true
         });
@@ -3506,15 +3578,16 @@ function createFireEmitter() {
         
         // Add user data to emitter
         emitter.userData = {
-            particles: particles,
-            particleCount: particleCount,
-            lastEmitTime: 0,
-            emitterPosition: new THREE.Vector3(), // Store position here instead
-            emitterDirection: new THREE.Vector3(0, 0, -1) // Store direction here
+        particles: particles,
+        particleCount: particleCount,
+            lastEmitTime: 0
         };
         
-        // Set initial position and direction using the proper Three.js methods
-        emitter.position.set(0, 0, 0);
+        // Add additional properties
+        emitter.active = false;
+        emitter.direction = new THREE.Vector3(0, 0, -1);
+        emitter.position = new THREE.Vector3();
+        emitter.lastUpdateTime = 0;
         
         return emitter;
     } catch (error) {
@@ -3523,12 +3596,14 @@ function createFireEmitter() {
         const dummyGeometry = new THREE.BufferGeometry();
         const dummyMaterial = new THREE.PointsMaterial();
         const dummyEmitter = new THREE.Points(dummyGeometry, dummyMaterial);
+        dummyEmitter.active = false;
+        dummyEmitter.direction = new THREE.Vector3();
+        dummyEmitter.position = new THREE.Vector3();
+        dummyEmitter.lastUpdateTime = 0;
         dummyEmitter.userData = {
             particles: [],
             particleCount: 0,
-            lastEmitTime: 0,
-            emitterPosition: new THREE.Vector3(),
-            emitterDirection: new THREE.Vector3(0, 0, -1)
+            lastEmitTime: 0
         };
         return dummyEmitter;
     }
@@ -3601,61 +3676,87 @@ function getProjectileFromPool() {
     return projectileData;
 }
 
-// Fire projectile - shoot from both sides of the ship with enhanced visuals
+// Fire projectile - shoot a single powerful projectile
 function fireProjectile() {
-    // Skip if weapon is in cooldown
-    if (weaponCooldown) return;
+    if (gameState !== 'playing') return;
     
-    // Get projectile from pool
-    const projectile = getProjectileFromPool();
-    if (!projectile) return; // No free projectiles available
-    
-    // Set projectile as active and reset lifetime
-    projectile.active = true;
-    projectile.created = Date.now();
-    projectile.mesh.visible = true;
-    
-    // Speed up projectile animation
-    projectile.speed = PROJECTILE_SPEED;
-    
-    // Get the ship's forward direction
-    const direction = new THREE.Vector3(0, 0, -1);
-    direction.applyQuaternion(ship.quaternion);
-    projectile.direction = direction;
-    
-    // Position projectile at the front of the ship
-    const offset = new THREE.Vector3(0, 0, -2.5); // Slightly in front
-    offset.applyQuaternion(ship.quaternion);
-    projectile.mesh.position.copy(ship.position).add(offset);
-    
-    // Rotate projectile to match ship orientation
-    projectile.mesh.quaternion.copy(ship.quaternion);
-    
-    // Activate fire emitter if it exists
-    if (projectile.fireEmitter) {
-        projectile.fireEmitter.visible = true;
-        projectile.fireEmitter.active = true;
+    // Check cooldown state
+    if (weaponCooldown) {
+        console.log("Weapon in cooldown");
+        return;
     }
     
-    // Set the hitbox radius
-    projectile.hitboxRadius = PROJECTILE_HITBOX_SIZE;
-    
-    // Create enhanced muzzle flash
-    createEnhancedMuzzleFlash(ship.position.clone().add(offset), direction);
-    
-    // Play sound effect
-    playSound('laser');
-    
-    // Start weapon cooldown
-    lastFireTime = Date.now();
-    startWeaponCooldown();
-    
-    // Add to active projectiles array
-    projectiles.push(projectile);
-    
-    // Add subtle camera shake for impact
-    if (camera && typeof addCameraShake === 'function') {
-        addCameraShake(0.1, 100);
+    // Create enhanced projectile
+    try {
+        // Create geometry and material for projectile with better visuals
+        // INCREASED SIZE from 0.8 to 1.5 for better visibility and collision
+        const projectileGeometry = new THREE.SphereGeometry(2.0, 24, 24);
+        const projectileMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff3300,
+            emissive: 0xff5500,
+            emissiveIntensity: 8.0,
+            metalness: 0.3,
+            roughness: 0.2
+        });
+        
+        // Create single projectile
+        const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial.clone());
+        
+        // Calculate firing direction (forward direction of ship)
+        const direction = new THREE.Vector3(0, 0, 1);
+        direction.applyQuaternion(ship.quaternion);
+        
+        // Position projectile at ship's front center
+        const offset = new THREE.Vector3(0, -0.2, 2);
+        offset.applyQuaternion(ship.quaternion);
+        projectile.position.copy(ship.position).add(offset);
+        
+        // Add to scene
+        scene.add(projectile);
+        
+        // Add enhanced glow effect - INCREASED intensity and range
+        const light = new THREE.PointLight(0xff5500, 5, 15);
+        light.position.copy(projectile.position);
+        scene.add(light);
+        
+        // Create powerful muzzle flash
+        const flashLight = new THREE.PointLight(0xff8800, 8, 6);
+        flashLight.position.copy(projectile.position);
+        scene.add(flashLight);
+        
+        // Remove flash light after a short time
+        setTimeout(() => {
+            scene.remove(flashLight);
+        }, 100);
+        
+        // Add larger trail effect
+        const trail = createProjectileTrail();
+        trail.scale.set(2.5, 2.5, 2.5); // Make trail larger
+        trail.position.copy(projectile.position);
+        // Align trail with projectile direction
+        trail.lookAt(projectile.position.clone().add(direction));
+        scene.add(trail);
+        
+        // Store projectile with its properties
+        projectiles.push({
+            mesh: projectile,
+            light: light,
+            trail: trail,
+            direction: direction.clone(),
+            speed: PROJECTILE_SPEED, // Make sure speed is set
+            created: Date.now(),
+            active: true,
+            hitboxRadius: PROJECTILE_HITBOX_RADIUS
+        });
+        
+        // Start cooldown
+        startWeaponCooldown();
+        
+        // Play enhanced fire sound
+        playSound('fire');
+        
+    } catch (error) {
+        console.error("Error creating projectile:", error);
     }
 }
 
@@ -3718,198 +3819,117 @@ function updateProjectiles() {
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const projectile = projectiles[i];
         
-        // Skip inactive projectiles
-        if (!projectile.active) continue;
-        
         // Move projectile
-        projectile.mesh.position.x += projectile.direction.x * projectile.speed * deltaTime;
-        projectile.mesh.position.y += projectile.direction.y * projectile.speed * deltaTime;
-        projectile.mesh.position.z += projectile.direction.z * projectile.speed * deltaTime;
-        
-        // Update fire emitter if it exists
-        if (projectile.fireEmitter) {
-            // Update emitter position to match projectile
-            projectile.fireEmitter.position.copy(projectile.mesh.position);
+        if (projectile.active) {
+            projectile.mesh.position.x += projectile.direction.x * projectile.speed * deltaTime;
+            projectile.mesh.position.y += projectile.direction.y * projectile.speed * deltaTime;
+            projectile.mesh.position.z += projectile.direction.z * projectile.speed * deltaTime;
             
-            // Update emitter data
-            if (projectile.fireEmitter.userData) {
-                projectile.fireEmitter.userData.emitterPosition.copy(projectile.mesh.position);
-                projectile.fireEmitter.userData.emitterDirection.copy(projectile.direction);
+            // Update light position
+            if (projectile.light) {
+                projectile.light.position.copy(projectile.mesh.position);
             }
             
-            // Update particle system
-            const particleSystem = projectile.fireEmitter;
-            const particles = particleSystem.userData.particles;
-            const positions = particleSystem.geometry.attributes.position.array;
-            const colors = particleSystem.geometry.attributes.color.array;
-            const sizes = particleSystem.geometry.attributes.size.array;
-            const alphas = particleSystem.geometry.attributes.alpha.array;
+            // Update trail position and orientation
+            if (projectile.trail) {
+                projectile.trail.position.copy(projectile.mesh.position);
+                projectile.trail.lookAt(projectile.mesh.position.clone().sub(projectile.direction));
+            }
             
-            // Update each particle
-            for (let j = 0; j < particles.length; j++) {
-                const particle = particles[j];
+            // Check projectile lifetime
+            const age = currentTime - projectile.created;
+            if (age > PROJECTILE_LIFETIME) {
+                // Remove projectile and light
+                scene.remove(projectile.mesh);
+                if (projectile.light) scene.remove(projectile.light);
+                if (projectile.trail) scene.remove(projectile.trail);
                 
-                if (!particle.active) {
-                    // Chance to emit new particle
-                    if (Math.random() < 0.3) {
-                        particle.active = true;
-                        particle.age = 0;
-                        particle.lifetime = 0.5 + Math.random() * 0.5; // 0.5 to 1.0 seconds
-                        particle.position.copy(projectile.mesh.position);
-                        
-                        // Add some random spread to velocity
-                        particle.velocity.copy(projectile.direction)
-                            .multiplyScalar(-1) // Particles move opposite to projectile direction
-                            .add(new THREE.Vector3(
-                                (Math.random() - 0.5) * 0.5,
-                                (Math.random() - 0.5) * 0.5,
-                                (Math.random() - 0.5) * 0.5
-                            ));
-                    }
-                } else {
-                    // Update active particle
-                    particle.age += deltaTime;
-                    
-                    if (particle.age >= particle.lifetime) {
-                        particle.active = false;
-                        continue;
-                    }
-                    
-                    // Update particle position
-                    particle.position.add(particle.velocity.clone().multiplyScalar(deltaTime * 20));
-                    
-                    // Calculate fade
-                    const lifeFactor = 1 - (particle.age / particle.lifetime);
-                    
-                    // Update particle attributes
-                    const idx = j * 3;
-                    positions[idx] = particle.position.x;
-                    positions[idx + 1] = particle.position.y;
-                    positions[idx + 2] = particle.position.z;
-                    
-                    // Fade color from bright to dim
-                    colors[idx] = 1.0;     // Red
-                    colors[idx + 1] = 0.5 * lifeFactor; // Green fades faster
-                    colors[idx + 2] = 0.2 * lifeFactor; // Blue fades faster
-                    
-                    // Size fades out
-                    sizes[j] = (0.5 + Math.random() * 0.5) * lifeFactor;
-                    
-                    // Alpha fades out
-                    alphas[j] = lifeFactor;
-                }
+                // Cleanup
+                if (projectile.mesh.geometry) projectile.mesh.geometry.dispose();
+                if (projectile.mesh.material) projectile.mesh.material.dispose();
+                if (projectile.trail && projectile.trail.geometry) projectile.trail.geometry.dispose();
+                if (projectile.trail && projectile.trail.material) projectile.trail.material.dispose();
+                
+                projectiles.splice(i, 1);
+                continue;
             }
             
-            // Update geometry attributes
-            particleSystem.geometry.attributes.position.needsUpdate = true;
-            particleSystem.geometry.attributes.color.needsUpdate = true;
-            particleSystem.geometry.attributes.size.needsUpdate = true;
-            particleSystem.geometry.attributes.alpha.needsUpdate = true;
-        }
-        
-        // Check lifetime
-        const age = currentTime - projectile.created;
-        if (age > PROJECTILE_LIFETIME) {
-            deactivateProjectile(projectile);
+            // Modified collision detection using projection-based method
+            let hitDrone = checkProjectileDroneCollision(projectile);
+            
+            // Remove projectile if it hit a drone
+            if (hitDrone) {
+                // Remove projectile
+                scene.remove(projectile.mesh);
+                if (projectile.light) scene.remove(projectile.light);
+                if (projectile.trail) scene.remove(projectile.trail);
+                
+                // Cleanup
+                if (projectile.mesh.geometry) projectile.mesh.geometry.dispose();
+                if (projectile.mesh.material) projectile.mesh.material.dispose();
+                if (projectile.trail && projectile.trail.geometry) projectile.trail.geometry.dispose();
+                if (projectile.trail && projectile.trail.material) projectile.trail.material.dispose();
+                
+                // Remove projectile from array
             projectiles.splice(i, 1);
-            continue;
         }
-        
-        // Check for collisions
-        if (checkProjectileObstacleCollision(projectile) || 
-            checkProjectileDataFragmentCollision(projectile) ||
-            checkProjectileDroneCollision(projectile)) {
-            deactivateProjectile(projectile);
-            projectiles.splice(i, 1);
-            continue;
-        }
+    }
     }
 }
 
 // New improved collision detection function
 function checkProjectileDroneCollision(projectile) {
-    // Use configurable hitbox size, defaulting to a larger value for improved hit detection
-    const hitboxRadius = projectile.hitboxRadius || 8.0; // Increased from 5.0
+    if (!projectile || !projectile.mesh || !projectile.active) return false;
     
-    // Store a reference to the projectile position
+    const hitboxRadius = PROJECTILE_HITBOX_RADIUS;
     const projectilePos = projectile.mesh.position;
     
-    // Check for collision with drones using multiple methods
+    // Debug visualization of hitbox
+    if (debugMode) {
+        console.log("Projectile position:", projectilePos.x, projectilePos.y, projectilePos.z);
+    }
+    
+    // Check for collision with drones
     for (let j = drones.length - 1; j >= 0; j--) {
         const drone = drones[j];
         
-        // Skip if drone is not active
-        if (!drone.active) continue;
+        // Skip invalid or inactive drones
+        if (!drone || !drone.active || !drone.mesh) continue;
         
-        // Make sure drone position is updated
+        // Update drone position from mesh
         drone.position.copy(drone.mesh.position);
         
-        // METHOD 1: Simple distance check with large radius
+        // Simple distance check with large radius
         const distance = projectilePos.distanceTo(drone.position);
+        
+        if (debugMode) {
+            console.log("Distance to drone:", distance, "Hitbox radius:", hitboxRadius);
+        }
+        
         if (distance < hitboxRadius) {
             handleDroneHit(drone);
             return true;
         }
         
-        // METHOD 2: Check if drone is in the forward path of the projectile
-        // Calculate vector from projectile to drone
+        // Additional forward path check
         const toDrone = new THREE.Vector3().subVectors(drone.position, projectilePos);
-        
-        // Project this vector onto the projectile direction
         const projectionLength = toDrone.dot(projectile.direction);
         
-        // Only check drones that are in front of the projectile and within a reasonable distance
-        // Increased from 10 to 15 for longer-range detection
+        // Check if drone is in front of projectile and within range
         if (projectionLength > 0 && projectionLength < 15) {
-            // Calculate the closest point on the projectile's path to the drone
             const projectedPoint = new THREE.Vector3()
                 .copy(projectilePos)
                 .add(projectile.direction.clone().multiplyScalar(projectionLength));
             
-            // Check distance from this point to the drone
             const perpendicularDistance = projectedPoint.distanceTo(drone.position);
             
-            // More forgiving hit detection (increased from 4.0 to 6.0)
-            if (perpendicularDistance < 6.0) {
+            if (perpendicularDistance < hitboxRadius) {
                 handleDroneHit(drone);
                 return true;
             }
         }
-        
-        // METHOD 3: Predictive collision - check if drone will be in the path of the projectile soon
-        // This helps with fast-moving targets
-        if (drone.velocity) {
-            // Predict where the drone will be in the next few frames
-            const predictedPosition = drone.position.clone().add(
-                drone.velocity.clone().multiplyScalar(0.1) // Look 0.1 seconds ahead
-            );
-            
-            // Calculate vector from projectile to predicted drone position
-            const toPredictedPos = new THREE.Vector3().subVectors(predictedPosition, projectilePos);
-            
-            // Project this vector onto the projectile direction
-            const predictedProjLength = toPredictedPos.dot(projectile.direction);
-            
-            // Only check drones that will be in front of the projectile
-            if (predictedProjLength > 0 && predictedProjLength < 20) {
-                // Calculate the closest point on the projectile's path to the predicted drone position
-                const predictedPoint = new THREE.Vector3()
-                    .copy(projectilePos)
-                    .add(projectile.direction.clone().multiplyScalar(predictedProjLength));
-                
-                // Check distance from this point to the predicted drone position
-                const predictedDistance = predictedPoint.distanceTo(predictedPosition);
-                
-                // If this distance is small enough, we have a hit
-                if (predictedDistance < 7.0) {
-                    handleDroneHit(drone);
-                    return true;
-                }
-            }
-        }
     }
     
-    // No collision detected
     return false;
 }
 
@@ -4863,180 +4883,344 @@ function createTallBuildings() {
     console.log("Added tall buildings. Total building count:", buildings.length);
 }
 
-// Add camera shake effect
-function addCameraShake(intensity, duration) {
-    cameraShake = {
-        active: true,
-        intensity: intensity || 0.3,
-        duration: duration || 200,
-        startTime: Date.now(),
-        originalPosition: camera.position.clone()
+// Import and integrate external city objects
+async function importExternalCityObjects() {
+    console.log("Importing external city objects...");
+    
+    // Create a loading manager to track progress
+    const loadingManager = new THREE.LoadingManager();
+    loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
+        console.log(`Loading city assets: ${itemsLoaded}/${itemsTotal}`);
+    };
+    
+    const textureLoader = new THREE.TextureLoader(loadingManager);
+    const gltfLoader = new THREE.GLTFLoader(loadingManager);
+    
+    // Load modern building textures
+    const buildingTextures = {
+        glass: await textureLoader.loadAsync('https://raw.githubusercontent.com/wisecameron/InfiniteCityThreeJS/main/public/textures/glass.jpg'),
+        concrete: await textureLoader.loadAsync('https://raw.githubusercontent.com/wisecameron/InfiniteCityThreeJS/main/public/textures/concrete.jpg'),
+        metal: await textureLoader.loadAsync('https://raw.githubusercontent.com/wisecameron/InfiniteCityThreeJS/main/public/textures/metal.jpg')
+    };
+    
+    // Create enhanced materials
+    const materials = {
+        glass: new THREE.MeshPhysicalMaterial({
+            map: buildingTextures.glass,
+            transparent: true,
+            opacity: 0.8,
+            metalness: 0.9,
+            roughness: 0.1,
+            envMapIntensity: 1.5,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.1
+        }),
+        concrete: new THREE.MeshStandardMaterial({
+            map: buildingTextures.concrete,
+            metalness: 0.5,
+            roughness: 0.7
+        }),
+        metal: new THREE.MeshStandardMaterial({
+            map: buildingTextures.metal,
+            metalness: 0.8,
+            roughness: 0.2
+        })
+    };
+    
+    // Load additional city models from GitHub repositories
+    const cityModels = {};
+    
+    try {
+        // Try to load city vehicle models
+        cityModels.vehicle = await gltfLoader.loadAsync(
+            'https://raw.githubusercontent.com/ankitjha2603/3d-city-tour/main/assets/car.glb'
+        );
+        console.log("Loaded vehicle models successfully");
+        
+        // Try to load street furniture (street lights, benches, etc.)
+        cityModels.streetLight = await gltfLoader.loadAsync(
+            'https://raw.githubusercontent.com/ErencanPelin/ThreeJS-City-Builder/main/assets/streetlight.glb'
+        );
+        console.log("Loaded street furniture models successfully");
+        
+        // Try to load advanced building models
+        cityModels.advancedBuilding = await gltfLoader.loadAsync(
+            'https://raw.githubusercontent.com/wisecameron/InfiniteCityThreeJS/main/public/models/building.glb'
+        );
+        console.log("Loaded advanced building models successfully");
+    } catch (error) {
+        console.warn("Could not load some external models:", error);
+        // Continue without the models that failed to load
+    }
+    
+    return {
+        materials,
+        buildingTextures,
+        cityModels
     };
 }
 
-// Apply camera shake effect
-function updateCameraShake() {
-    if (!cameraShake || !cameraShake.active || !camera) return;
+// Modify createCityscape to use enhanced materials
+async function createCityscape() {
+    console.log("Starting to create enhanced cityscape...");
+    buildings = [];
     
-    const elapsed = Date.now() - cameraShake.startTime;
+    // Import external materials and objects
+    const { materials, cityModels } = await importExternalCityObjects();
     
-    if (elapsed > cameraShake.duration) {
-        // Reset camera position and deactivate shake
-        cameraShake.active = false;
-        return;
-    }
-    
-    // Calculate shake amount based on remaining time (fade out effect)
-    const remaining = 1 - (elapsed / cameraShake.duration);
-    const shakeAmount = cameraShake.intensity * remaining;
-    
-    // Apply random shake to camera position
-    const shakeOffsetX = (Math.random() * 2 - 1) * shakeAmount;
-    const shakeOffsetY = (Math.random() * 2 - 1) * shakeAmount;
-    
-    // Apply shake to camera position relative to target
-    if (ship) {
-        cameraTarget.copy(ship.position);
-        camera.position.copy(ship.position)
-            .add(cameraOffset)
-            .add(new THREE.Vector3(shakeOffsetX, shakeOffsetY, 0));
-        camera.lookAt(cameraTarget);
-    }
-}
-
-// Deactivate and clean up a projectile
-function deactivateProjectile(projectile) {
-    if (!projectile) return;
-    
-    // Set as inactive
-    projectile.active = false;
-    
-    // Hide the projectile mesh
-    if (projectile.mesh) {
-        projectile.mesh.visible = false;
-    }
-    
-    // Clean up fire emitter
-    if (projectile.fireEmitter) {
-        projectile.fireEmitter.visible = false;
+    for (let i = 0; i < BUILDING_COUNT; i++) {
+        // Random building size with more height variation
+        const width = 5 + Math.random() * 15;
+        const height = 10 + Math.random() * 90;
+        const depth = 5 + Math.random() * 15;
         
-        // Reset all particles
-        if (projectile.fireEmitter.userData && projectile.fireEmitter.userData.particles) {
-            const particles = projectile.fireEmitter.userData.particles;
-            for (let i = 0; i < particles.length; i++) {
-                particles[i].active = false;
+        // Position logic remains the same
+        let x, z;
+        let intersectsConduit = true;
+        let intersectsBuilding = true;
+        let attempts = 0;
+        
+        // Try to find a position that doesn't intersect with the energy conduit or other buildings
+        while ((intersectsConduit || intersectsBuilding) && attempts < 50) {
+            x = Math.random() * CITY_SIZE - CITY_SIZE/2;
+            z = Math.random() * CITY_SIZE - CITY_SIZE/2;
+            
+            // Check if building intersects with the energy conduit corridors
+            intersectsConduit = (
+                // Check intersection with X-axis conduit
+                (z > -ENERGY_CONDUIT_WIDTH/2 && z < ENERGY_CONDUIT_WIDTH/2 && 
+                 x > -CITY_SIZE/2 && x < CITY_SIZE/2) ||
+                // Check intersection with Z-axis conduit
+                (x > -ENERGY_CONDUIT_WIDTH/2 && x < ENERGY_CONDUIT_WIDTH/2 && 
+                 z > -CITY_SIZE/2 && z < CITY_SIZE/2)
+            );
+            
+            // Also account for building width/depth (half dimensions from center point)
+            if (!intersectsConduit) {
+                const halfWidth = width / 2;
+                const halfDepth = depth / 2;
+                
+                intersectsConduit = (
+                    // X-axis conduit intersection with building boundaries
+                    (z + halfDepth > -ENERGY_CONDUIT_WIDTH/2 && z - halfDepth < ENERGY_CONDUIT_WIDTH/2 &&
+                     x > -CITY_SIZE/2 && x < CITY_SIZE/2) ||
+                    // Z-axis conduit intersection with building boundaries  
+                    (x + halfWidth > -ENERGY_CONDUIT_WIDTH/2 && x - halfWidth < ENERGY_CONDUIT_WIDTH/2 &&
+                     z > -CITY_SIZE/2 && z < CITY_SIZE/2)
+                );
             }
             
-            // Reset particle system attributes
-            const geometry = projectile.fireEmitter.geometry;
-            if (geometry) {
-                const positions = geometry.attributes.position.array;
-                const colors = geometry.attributes.color.array;
-                const sizes = geometry.attributes.size.array;
-                const alphas = geometry.attributes.alpha.array;
+            // Check if building intersects with existing buildings
+            intersectsBuilding = false;
+            if (!intersectsConduit) {
+                const halfWidth = width / 2;
+                const halfDepth = depth / 2;
                 
-                for (let i = 0; i < particles.length; i++) {
-                    const idx = i * 3;
-                    // Reset position
-                    positions[idx] = 0;
-                    positions[idx + 1] = 0;
-                    positions[idx + 2] = 0;
-                    // Reset color
-                    colors[idx] = 0;
-                    colors[idx + 1] = 0;
-                    colors[idx + 2] = 0;
-                    // Reset size and alpha
-                    sizes[i] = 0;
-                    alphas[i] = 0;
+                for (const existingBuilding of buildings) {
+                    const exHalfWidth = existingBuilding.width / 2;
+                    const exHalfDepth = existingBuilding.depth / 2;
+                    
+                    // Check for intersection
+                    if (
+                        x + halfWidth > existingBuilding.x - exHalfWidth &&
+                        x - halfWidth < existingBuilding.x + exHalfWidth &&
+                        z + halfDepth > existingBuilding.z - exHalfDepth &&
+                        z - halfDepth < existingBuilding.z + exHalfDepth
+                    ) {
+                        intersectsBuilding = true;
+                        break;
+                    }
                 }
+            }
+            
+            attempts++;
+        }
+        
+        // Enhanced building creation with modern materials
+        const buildingGroup = new THREE.Group();
+        
+        // Use advanced building model if available, otherwise use basic geometry
+        if (cityModels.advancedBuilding && Math.random() > 0.7) {
+            // Clone and scale the imported model
+            const buildingModel = cityModels.advancedBuilding.scene.clone();
+            buildingModel.scale.set(width/10, height/50, depth/10); // Adjust scale as needed
+            buildingGroup.add(buildingModel);
+        } else {
+            // Main structure with glass facade
+            const mainGeometry = new THREE.BoxGeometry(width, height * 0.9, depth);
+            const mainBuilding = new THREE.Mesh(mainGeometry, materials.glass);
+            buildingGroup.add(mainBuilding);
+            
+            // Concrete core
+            const coreWidth = width * 0.5;
+            const coreDepth = depth * 0.5;
+            const coreGeometry = new THREE.BoxGeometry(coreWidth, height, coreDepth);
+            const coreBuilding = new THREE.Mesh(coreGeometry, materials.concrete);
+            buildingGroup.add(coreBuilding);
+            
+            // Add detailing to the building
+            if (height > 30) {
+                // Add roof details for taller buildings
+                const roofDetailGeometry = new THREE.BoxGeometry(width * 0.7, height * 0.05, depth * 0.7);
+                const roofDetail = new THREE.Mesh(roofDetailGeometry, materials.metal);
+                roofDetail.position.y = height * 0.5;
+                buildingGroup.add(roofDetail);
+            }
+            
+            // Add window lights
+            addWindowsToBuilding(buildingGroup, width, height, depth, windowsMaterial);
+        }
+        
+        // Position the building
+        buildingGroup.position.set(x, height/2, z);
+        
+        // Add random rotation
+        if (Math.random() > 0.7) {
+            buildingGroup.rotation.y = Math.random() * Math.PI * 0.25;
+        }
+        
+        buildingGroup.castShadow = true;
+        buildingGroup.receiveShadow = true;
+        
+        // Save building dimensions and position for collision detection
+        buildings.push({
+            mesh: buildingGroup,
+            width: width,
+            height: height,
+            depth: depth,
+            x: x,
+            z: z
+        });
+        
+        scene.add(buildingGroup);
+    }
+    
+    // Add street lights along the energy conduit if models are available
+    if (cityModels.streetLight) {
+        addStreetLightsToCity(cityModels.streetLight);
+    }
+    
+    // Add moving vehicles if models are available
+    if (cityModels.vehicle) {
+        addVehiclesToCity(cityModels.vehicle);
+    }
+    
+    console.log("Enhanced cityscape creation complete. Building count:", buildings.length);
+}
+
+// Add street lights along the main roads
+function addStreetLightsToCity(streetLightModel) {
+    const spacing = 20; // Distance between street lights
+    
+    // Add lights along the Z-axis conduit
+    for (let z = -CITY_SIZE/2 + spacing; z < CITY_SIZE/2; z += spacing) {
+        // Add streetlights on both sides of the Z-axis
+        addStreetLight(ENERGY_CONDUIT_WIDTH/2 + 2, z, streetLightModel);
+        addStreetLight(-ENERGY_CONDUIT_WIDTH/2 - 2, z, streetLightModel);
+    }
+    
+    // Add lights along the X-axis conduit (for future transit)
+    for (let x = -CITY_SIZE/2 + spacing; x < CITY_SIZE/2; x += spacing) {
+        // Add streetlights on both sides of the X-axis
+        addStreetLight(x, ENERGY_CONDUIT_WIDTH/2 + 2, streetLightModel);
+        addStreetLight(x, -ENERGY_CONDUIT_WIDTH/2 - 2, streetLightModel);
+    }
+}
+
+// Add a single street light at position
+function addStreetLight(x, z, streetLightModel) {
+    const streetLight = streetLightModel.scene.clone();
+    
+    // Scale the street light appropriately
+    streetLight.scale.set(2, 2, 2);
+    
+    // Position the street light
+    streetLight.position.set(x, 0, z);
+    
+    // Rotate to face the road
+    if (Math.abs(x) > Math.abs(z)) {
+        // Light is on north/south side of road
+        streetLight.rotation.y = x > 0 ? Math.PI : 0;
+    } else {
+        // Light is on east/west side of road
+        streetLight.rotation.y = z > 0 ? Math.PI/2 : -Math.PI/2;
+    }
+    
+    // Add light source for the street light
+    const light = new THREE.PointLight(0xffffaa, 1, 15);
+    light.position.y = 7; // Height of light
+    streetLight.add(light);
+    
+    scene.add(streetLight);
+}
+
+// Add vehicles to the city streets
+function addVehiclesToCity(vehicleModel) {
+    const vehicleCount = 10;
+    const vehicles = [];
+    
+    for (let i = 0; i < vehicleCount; i++) {
+        const vehicle = vehicleModel.scene.clone();
+        
+        // Scale the vehicle
+        vehicle.scale.set(0.5, 0.5, 0.5);
+        
+        // Determine if vehicle will be on X or Z axis
+        const onXAxis = Math.random() > 0.5;
+        let x, z;
+        
+        if (onXAxis) {
+            x = Math.random() * CITY_SIZE - CITY_SIZE/2;
+            z = (Math.random() > 0.5 ? 1 : -1) * (ENERGY_CONDUIT_WIDTH/4);
+            vehicle.rotation.y = Math.PI/2 * (Math.random() > 0.5 ? 1 : 3); // East or West
+        } else {
+            x = (Math.random() > 0.5 ? 1 : -1) * (ENERGY_CONDUIT_WIDTH/4);
+            z = Math.random() * CITY_SIZE - CITY_SIZE/2;
+            vehicle.rotation.y = Math.PI/2 * (Math.random() > 0.5 ? 0 : 2); // North or South
+        }
+        
+        vehicle.position.set(x, 0.5, z);
+        scene.add(vehicle);
+        
+        vehicles.push({
+            mesh: vehicle,
+            speed: 0.1 + Math.random() * 0.2,
+            direction: vehicle.rotation.y,
+            onXAxis: onXAxis
+        });
+    }
+    
+    // Animate vehicles
+    function animateVehicles() {
+        for (const vehicle of vehicles) {
+            if (vehicle.onXAxis) {
+                // Move along X axis
+                vehicle.mesh.position.x += Math.cos(vehicle.direction) * vehicle.speed;
                 
-                geometry.attributes.position.needsUpdate = true;
-                geometry.attributes.color.needsUpdate = true;
-                geometry.attributes.size.needsUpdate = true;
-                geometry.attributes.alpha.needsUpdate = true;
+                // Loop around if reached edge of city
+                if (vehicle.mesh.position.x > CITY_SIZE/2) {
+                    vehicle.mesh.position.x = -CITY_SIZE/2;
+                } else if (vehicle.mesh.position.x < -CITY_SIZE/2) {
+                    vehicle.mesh.position.x = CITY_SIZE/2;
+                }
+            } else {
+                // Move along Z axis
+                vehicle.mesh.position.z += Math.sin(vehicle.direction) * vehicle.speed;
+                
+                // Loop around if reached edge of city
+                if (vehicle.mesh.position.z > CITY_SIZE/2) {
+                    vehicle.mesh.position.z = -CITY_SIZE/2;
+                } else if (vehicle.mesh.position.z < -CITY_SIZE/2) {
+                    vehicle.mesh.position.z = CITY_SIZE/2;
+                }
             }
         }
+        
+        requestAnimationFrame(animateVehicles);
     }
     
-    // Turn off lights
-    if (projectile.light) {
-        projectile.light.intensity = 0;
-    }
-    
-    // Reset inner core if it exists
-    if (projectile.innerCore) {
-        projectile.innerCore.visible = false;
-    }
+    // Start vehicle animation
+    animateVehicles();
 }
 
-// Check for collision between projectile and obstacles (buildings)
-function checkProjectileObstacleCollision(projectile) {
-    if (!projectile.active || !buildings) return false;
-    
-    const projectilePos = projectile.mesh.position;
-    const projectileRadius = projectile.hitboxRadius || 2.0;
-    
-    // Check each building
-    for (const building of buildings) {
-        if (!building.mesh) continue;
-        
-        // Get building bounds
-        const boundingBox = new THREE.Box3().setFromObject(building.mesh);
-        
-        // Expand bounding box by projectile radius for more forgiving collisions
-        boundingBox.min.subScalar(projectileRadius);
-        boundingBox.max.addScalar(projectileRadius);
-        
-        // Check if projectile position is inside expanded bounds
-        if (boundingBox.containsPoint(projectilePos)) {
-            // Create impact effect
-            createEnhancedMuzzleFlash(projectilePos, projectile.direction.clone().multiplyScalar(-1));
-            
-            // Play impact sound
-            playSound('impact');
-            
-            return true;
-        }
-    }
-    
-    return false;
-}
-
-// Check for collision between projectile and data fragments
-function checkProjectileDataFragmentCollision(projectile) {
-    if (!projectile.active || !dataFragments) return false;
-    
-    const projectilePos = projectile.mesh.position;
-    const projectileRadius = projectile.hitboxRadius || 2.0;
-    
-    // Check each data fragment
-    for (const fragment of dataFragments) {
-        if (!fragment.active || !fragment.mesh) continue;
-        
-        const fragmentPos = fragment.mesh.position;
-        const distance = projectilePos.distanceTo(fragmentPos);
-        
-        // Use a larger radius for data fragments to prevent accidental hits
-        if (distance < (projectileRadius + 5.0)) {
-            // Create warning effect
-            createEnhancedMuzzleFlash(projectilePos, projectile.direction.clone().multiplyScalar(-1));
-            
-            // Play warning sound
-            playSound('warning');
-            
-            // Show warning message
-            const warningText = document.getElementById('warning-text');
-            if (warningText) {
-                warningText.textContent = 'WARNING: DO NOT DESTROY DATA FRAGMENTS';
-                warningText.style.opacity = '1';
-                setTimeout(() => {
-                    warningText.style.opacity = '0';
-                }, 2000);
-            }
-            
-            return true;
-        }
-    }
-    
-    return false;
-}
+// ... existing code ...
