@@ -4926,3 +4926,139 @@ function updateIndicators() {
         }
     }
 }
+
+// Fire projectile - shoot from both sides of the ship with enhanced visuals
+function fireProjectile() {
+    if (gameState !== 'playing') return;
+    
+    // Check cooldown state
+    if (weaponCooldown) {
+        console.log("Weapon in cooldown");
+        return;
+    }
+    
+    // Create enhanced projectiles
+    try {
+        // Create geometry and material for projectiles with better visuals
+        const projectileGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+        const projectileMaterial = new THREE.MeshStandardMaterial({
+            color: 0x9933ff,
+            emissive: 0xaa55ff,
+            emissiveIntensity: 5.0,
+            metalness: 0.3,
+            roughness: 0.2
+        });
+        
+        // Create projectiles (left and right)
+        const projectile1 = new THREE.Mesh(projectileGeometry, projectileMaterial.clone());
+        const projectile2 = new THREE.Mesh(projectileGeometry, projectileMaterial.clone());
+        
+        // Calculate firing direction (forward direction of ship)
+        const direction = new THREE.Vector3(0, 0, 1);
+        direction.applyQuaternion(ship.quaternion);
+        
+        // Calculate offsets for left and right projectiles
+        const offsetLeft = new THREE.Vector3(-1.5, -0.2, 0.5);
+        offsetLeft.applyQuaternion(ship.quaternion);
+        
+        const offsetRight = new THREE.Vector3(1.5, -0.2, 0.5);
+        offsetRight.applyQuaternion(ship.quaternion);
+        
+        // Position projectiles at ship's position + offset
+        projectile1.position.copy(ship.position).add(offsetLeft);
+        projectile2.position.copy(ship.position).add(offsetRight);
+        
+        // Add to scene
+        scene.add(projectile1);
+        scene.add(projectile2);
+        
+        // Add enhanced glow effect
+        const light1 = new THREE.PointLight(0x9933ff, 3, 12);
+        const light2 = new THREE.PointLight(0x9933ff, 3, 12);
+        
+        light1.position.copy(projectile1.position);
+        light2.position.copy(projectile2.position);
+        
+        scene.add(light1);
+        scene.add(light2);
+        
+        // Create compact light flash instead of rectangular flash
+        const flashLight1 = new THREE.PointLight(0xcc77ff, 5, 3);
+        const flashLight2 = new THREE.PointLight(0xcc77ff, 5, 3);
+        
+        flashLight1.position.copy(projectile1.position);
+        flashLight2.position.copy(projectile2.position);
+        
+        scene.add(flashLight1);
+        scene.add(flashLight2);
+        
+        // Remove flash lights after a short time
+        setTimeout(() => {
+            scene.remove(flashLight1);
+            scene.remove(flashLight2);
+        }, 100);
+        
+        // Add trail effect
+        const trail1 = createProjectileTrail();
+        const trail2 = createProjectileTrail();
+        
+        trail1.position.copy(projectile1.position);
+        trail2.position.copy(projectile2.position);
+        
+        scene.add(trail1);
+        scene.add(trail2);
+        
+        // Store projectiles with their properties
+        projectiles.push({
+            mesh: projectile1,
+            light: light1,
+            trail: trail1,
+            direction: direction.clone(),
+            speed: PROJECTILE_SPEED,
+            created: Date.now(),
+            active: true,
+            // Add hitbox radius for collision detection
+            hitboxRadius: 3.0
+        });
+        
+        projectiles.push({
+            mesh: projectile2,
+            light: light2,
+            trail: trail2,
+            direction: direction.clone(),
+            speed: PROJECTILE_SPEED,
+            created: Date.now(),
+            active: true,
+            // Add hitbox radius for collision detection
+            hitboxRadius: 3.0
+        });
+        
+        // Start cooldown - enforce the delay between shots
+        startWeaponCooldown();
+        
+        // Play fire sound
+        playSound('fire');
+        
+    } catch (error) {
+        console.error("Error creating projectiles:", error);
+    }
+}
+
+// Create a projectile trail effect
+function createProjectileTrail() {
+    const trailMaterial = new THREE.MeshBasicMaterial({
+        color: 0xcc99ff,
+        transparent: true,
+        opacity: 0.7,
+        side: THREE.DoubleSide
+    });
+    
+    // Trail size
+    const trailGeometry = new THREE.PlaneGeometry(0.5, 3);
+    const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+    
+    // Rotate to align with projectile direction
+    trail.rotation.x = Math.PI / 2;
+    
+    return trail;
+}
