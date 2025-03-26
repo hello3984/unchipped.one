@@ -80,14 +80,16 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            font-size: 18px;
-            color: #00ff00;
-            text-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
-            z-index: 50;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 5px 10px;
-            border-radius: 5px;
+            font-size: 24px;
+            color: #ffff00;
+            text-shadow: 0 0 10px #ffff00, 0 0 20px #ffff00;
+            z-index: 9999;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 8px;
             font-family: monospace;
+            font-weight: bold;
+            border: 2px solid #ffff00;
         }
         
         #health-bar-container {
@@ -729,6 +731,45 @@
                 <p>Try refreshing the page or check the console for more details.</p>
             `;
         });
+        
+        // Standalone FPS counter (works even if Three.js has issues)
+        (function() {
+            let lastTime = performance.now();
+            let frames = 0;
+            let fps = 0;
+            
+            function updateFPS() {
+                const now = performance.now();
+                frames++;
+                
+                // Update FPS every 500ms
+                if (now >= lastTime + 500) {
+                    fps = Math.round((frames * 1000) / (now - lastTime));
+                    frames = 0;
+                    lastTime = now;
+                    
+                    // Update FPS counter display
+                    const fpsDisplay = document.getElementById('fps-counter');
+                    if (fpsDisplay) {
+                        fpsDisplay.textContent = `FPS: ${fps}`;
+                        
+                        // Color coding based on FPS
+                        if (fps > 45) {
+                            fpsDisplay.style.color = '#ffff00';
+                        } else if (fps > 30) {
+                            fpsDisplay.style.color = '#ff9900';
+                        } else {
+                            fpsDisplay.style.color = '#ff3300';
+                        }
+                    }
+                }
+                
+                requestAnimationFrame(updateFPS);
+            }
+            
+            // Start the FPS counter
+            requestAnimationFrame(updateFPS);
+        })();
         
         // Hide loading screen after 5 seconds maximum
         setTimeout(function() {
