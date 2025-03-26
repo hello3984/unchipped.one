@@ -155,6 +155,9 @@ const INVINCIBILITY_TIME = 2000; // Milliseconds of invincibility after damage
 // Add weapon cooldown time constant
 const WEAPON_COOLDOWN_TIME = 500; // 500ms (half second) cooldown between shots
 
+// Add projectile lifetime constant
+const PROJECTILE_LIFETIME = 3000; // 3 seconds
+
 // Add these variables near the top with other game variables
 let floatingTextPool = []; // Pool of reusable floating text elements
 const FLOATING_TEXT_POOL_SIZE = 10; // Maximum number of floating text elements
