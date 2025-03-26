@@ -4541,6 +4541,83 @@ function updateProjectiles() {
     }
 }
 
+// New improved collision detection function
+function checkProjectileDroneCollision(projectile) {
+    // Get the projectile hitbox radius or default to a larger value (5.0)
+    const hitboxRadius = projectile.hitboxRadius || 5.0;
+    
+    // Store a reference to the projectile position
+    const projectilePos = projectile.mesh.position;
+    
+    // Check for collision with drones using multiple methods
+    for (let j = drones.length - 1; j >= 0; j--) {
+        const drone = drones[j];
+        
+        // Skip if drone is not active
+        if (!drone.active) continue;
+        
+        // Make sure drone position is updated
+        drone.position.copy(drone.mesh.position);
+        
+        // METHOD 1: Simple distance check with large radius
+        const distance = projectilePos.distanceTo(drone.position);
+        if (distance < hitboxRadius) {
+            handleDroneHit(drone);
+            return true;
+        }
+        
+        // METHOD 2: Check if drone is in the forward path of the projectile
+        // Calculate vector from projectile to drone
+        const toDrone = new THREE.Vector3().subVectors(drone.position, projectilePos);
+        
+        // Project this vector onto the projectile direction
+        const projectionLength = toDrone.dot(projectile.direction);
+        
+        // Only check drones that are in front of the projectile
+        if (projectionLength > 0 && projectionLength < 10) {
+            // Calculate the closest point on the projectile's path to the drone
+            const projectedPoint = new THREE.Vector3()
+                .copy(projectilePos)
+                .add(projectile.direction.clone().multiplyScalar(projectionLength));
+            
+            // Check distance from this point to the drone
+            const perpendicularDistance = projectedPoint.distanceTo(drone.position);
+            
+            // If this distance is small enough, we have a hit
+            if (perpendicularDistance < 4.0) {
+                handleDroneHit(drone);
+                return true;
+            }
+        }
+    }
+    
+    // No collision detected
+    return false;
+}
+
+// Handle drone hit
+function handleDroneHit(drone) {
+    console.log("Hit drone at position:", drone.position.x, drone.position.y, drone.position.z);
+    
+    // Create explosion at drone position
+    createDroneExplosion(
+        drone.position.x,
+        drone.position.y,
+        drone.position.z
+    );
+    
+    // Remove drone
+    scene.remove(drone.mesh);
+    deactivateDrone(drone);
+    
+    // Update score
+    score += 20;
+    document.getElementById('score-display').textContent = `Score: ${score}`;
+    
+    // Play explosion sound
+    playSound('explosion');
+}
+
 // Apply frustum culling to buildings
 function applyBuildingFrustumCulling(frustum) {
     // Only process this once per frame for efficiency
