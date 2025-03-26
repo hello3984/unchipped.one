@@ -145,6 +145,9 @@ const PROJECTILE_SPEED = 100;
 // Add ship speed constant
 const SHIP_SPEED = 1.5;
 
+// Add ship rotation speed constant
+const SHIP_ROTATION_SPEED = 0.05;
+
 // Add these variables near the top with other game variables
 let floatingTextPool = []; // Pool of reusable floating text elements
 const FLOATING_TEXT_POOL_SIZE = 10; // Maximum number of floating text elements
