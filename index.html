@@ -888,21 +888,48 @@
                 flex-direction: column;
                 align-items: center;
                 margin-top: 20px;
+                gap: 15px;
             }
             
             #start-screen button,
             #game-over-screen button,
             #pause-screen button {
-                margin-bottom: 15px;
-                width: 250px;
-                font-size: 1.2em;
-                padding: 15px 10px;
+                margin: 0;
+                width: 280px;
+                font-size: 1.4em;
+                padding: 20px 15px;
+                border-radius: 10px;
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
+                user-select: none;
+                -webkit-user-select: none;
             }
             
             .pulse-button {
-                font-size: 24px !important;
-                padding: 18px 10px !important;
+                font-size: 1.6em !important;
+                padding: 25px 15px !important;
                 box-shadow: 0 0 30px rgba(255, 51, 102, 0.9) !important;
+                margin-bottom: 20px !important;
+            }
+            
+            /* Ensure buttons are easily tappable */
+            #start-screen button:active,
+            #game-over-screen button:active,
+            #pause-screen button:active {
+                transform: scale(0.95);
+                opacity: 0.9;
+            }
+            
+            /* Add touch feedback */
+            .button-container button {
+                transition: transform 0.1s ease-in-out, opacity 0.1s ease-in-out;
+            }
+            
+            /* Prevent text selection on buttons */
+            .button-container button {
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                user-select: none;
             }
             
             /* Larger joystick for better control */
@@ -1557,6 +1584,90 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Set viewport height on mobile devices to account for browser chrome
             if (isMobile) {
+                // Add touch event listeners for all game buttons
+                const startButton = document.getElementById('start-button');
+                const restartButton = document.getElementById('restart-button');
+                const resumeButton = document.getElementById('resume-button');
+                
+                // Start button touch events
+                startButton.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    console.log("Start button touched");
+                    
+                    // Visual feedback
+                    this.style.transform = 'scale(0.95)';
+                    this.style.opacity = '0.9';
+                    
+                    // Start the game
+                    if (window.gameControl && window.gameControl.startGame) {
+                        window.gameControl.startGame();
+                    }
+                });
+                
+                startButton.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    // Reset visual state
+                    this.style.transform = '';
+                    this.style.opacity = '';
+                });
+                
+                // Restart button touch events
+                restartButton.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    console.log("Restart button touched");
+                    
+                    // Visual feedback
+                    this.style.transform = 'scale(0.95)';
+                    this.style.opacity = '0.9';
+                    
+                    // Restart the game
+                    if (window.gameControl && window.gameControl.restartGame) {
+                        window.gameControl.restartGame();
+                    }
+                });
+                
+                restartButton.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    // Reset visual state
+                    this.style.transform = '';
+                    this.style.opacity = '';
+                });
+                
+                // Resume button touch events
+                resumeButton.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    console.log("Resume button touched");
+                    
+                    // Visual feedback
+                    this.style.transform = 'scale(0.95)';
+                    this.style.opacity = '0.9';
+                    
+                    // Resume the game
+                    if (window.gameControl && window.gameControl.resumeGame) {
+                        window.gameControl.resumeGame();
+                    }
+                });
+                
+                resumeButton.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    // Reset visual state
+                    this.style.transform = '';
+                    this.style.opacity = '';
+                });
+                
+                // Prevent default click events on mobile
+                startButton.addEventListener('click', function(e) {
+                    if (isMobile) e.preventDefault();
+                });
+                
+                restartButton.addEventListener('click', function(e) {
+                    if (isMobile) e.preventDefault();
+                });
+                
+                resumeButton.addEventListener('click', function(e) {
+                    if (isMobile) e.preventDefault();
+                });
+                
                 // Set the --vh CSS variable to be equal to the viewport height
                 const vh = window.innerHeight * 0.01;
                 document.documentElement.style.setProperty('--vh', `${vh}px`);
