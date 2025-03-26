@@ -139,6 +139,9 @@ const DATA_FRAGMENT_COUNT = 20; // Number of data fragments to collect in the ga
 // Add drone count constant
 const DRONE_COUNT = 10; // Number of enemy drones
 
+// Add projectile speed constant if not already defined
+const PROJECTILE_SPEED = 100;
+
 // Add these variables near the top with other game variables
 let floatingTextPool = []; // Pool of reusable floating text elements
 const FLOATING_TEXT_POOL_SIZE = 10; // Maximum number of floating text elements
@@ -4618,4 +4621,59 @@ function showPerformanceHelp() {
             helpPanel.style.display = 'none';
         }, 15000);
     }
+}
+
+// Initialize the projectile pool
+function initProjectilePool() {
+    console.log("Initializing projectile pool...");
+    projectilePool = [];
+    
+    // Create fire particle texture if not already created
+    if (!fireParticleTexture) {
+        fireParticleTexture = createFireParticleTexture();
+    }
+    
+    // Create projectiles and add to pool
+    for (let i = 0; i < PROJECTILE_POOL_SIZE; i++) {
+        // Create a small core for the projectile
+        const coreGeometry = new THREE.SphereGeometry(0.15, 6, 6);
+        const coreMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff3300,
+            emissive: 0xff5500,
+            emissiveIntensity: 3.0,
+            transparent: true,
+            opacity: 0.8
+        });
+        
+        const core = new THREE.Mesh(coreGeometry, coreMaterial);
+        
+        // Add a point light to make the projectile glow
+        const projectileLight = new THREE.PointLight(0xff3300, 2, 5);
+        projectileLight.position.set(0, 0, 0);
+        core.add(projectileLight);
+        
+        // Group the core and fire particles
+        const projectileGroup = new THREE.Group();
+        projectileGroup.add(core);
+        
+        // Create projectile data
+        const projectileData = {
+            mesh: projectileGroup,
+            core: core,
+            light: projectileLight,
+            particleSystem: null, // Will be created when used
+            particles: [],
+            direction: new THREE.Vector3(), // Initialize direction vector
+            speed: PROJECTILE_SPEED,
+            distance: 0,
+            creationTime: 0,
+            lastUpdateTime: 0,
+            active: false // Start inactive
+        };
+        
+        // Add to pool
+        projectilePool.push(projectileData);
+    }
+    
+    console.log(`Projectile pool initialized with ${PROJECTILE_POOL_SIZE} projectiles`);
 }
