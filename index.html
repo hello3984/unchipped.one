@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000033">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -275,416 +278,546 @@
         /* Advanced flight indicators styles */
         #flight-indicators {
             position: fixed;
-            top: 20px;
+            top: 60px;
             right: 20px;
-            width: 120px;
-            background-color: rgba(0, 0, 33, 0.8);
-            border: 1px solid #00ffff;
-            border-radius: 5px;
+            background-color: rgba(0, 10, 30, 0.85);
+            border: 2px solid #00ccff;
+            border-radius: 6px;
+            box-shadow: 0 0 15px rgba(0, 204, 255, 0.5);
             color: #00ffff;
-            font-family: monospace;
-            font-size: 14px;
             padding: 10px;
-            z-index: 10;
-            display: none; /* Hidden initially, shown during gameplay */
-        }
-        
-        /* Mobile styles */
-        #mobile-preview {
-            display: none; /* Hidden by default, shown only on mobile */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000033;
-            color: #00ffff;
-            z-index: 2000; /* Above everything else */
-            overflow-y: auto;
-            font-family: 'Orbitron', sans-serif;
-        }
-        
-        .mobile-content {
-            padding: 20px;
-            max-width: 100%;
-            margin: 0 auto;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .mobile-title {
-            font-size: 2.5rem;
-            text-align: center;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            color: #00ffff;
-            text-shadow: 0 0 10px #00ffff;
-            animation: glow 2s infinite alternate;
-        }
-        
-        .mobile-tagline {
-            font-size: 1.2rem;
-            text-align: center;
-            margin-bottom: 30px;
-            color: #ffcc00;
+            width: 120px;
+            z-index: 100;
+            font-family: "Orbitron", sans-serif;
             text-transform: uppercase;
-            font-weight: bold;
+            backdrop-filter: blur(5px);
+            animation: panel-glow 4s infinite alternate;
+        }
+        
+        @keyframes panel-glow {
+            0% { box-shadow: 0 0 15px rgba(0, 204, 255, 0.5); }
+            100% { box-shadow: 0 0 25px rgba(0, 204, 255, 0.8); }
+        }
+        
+        #flight-indicators .indicator-label {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-bottom: 2px;
             letter-spacing: 1px;
+            text-align: left;
+            color: #66ccff;
         }
         
-        .mobile-book-cover {
-            width: 200px;
-            height: 300px;
-            margin: 0 auto 30px;
-            background-color: #000;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-            background-image: linear-gradient(135deg, #000033, #000066);
-            border-radius: 5px;
-            flex-direction: column;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .book-title {
-            color: #00ffff;
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-bottom: 15px;
-            text-shadow: 0 0 10px #00ffff;
-            letter-spacing: 2px;
-        }
-        
-        .book-subtitle {
-            color: #ffcc00;
-            font-size: 0.9rem;
-            margin-bottom: 50px;
-            letter-spacing: 1px;
-        }
-        
-        .book-author {
+        #flight-indicators .indicator-value {
+            font-size: 20px;
+            font-weight: 700;
             color: #ffffff;
-            font-size: 0.8rem;
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
+            margin-bottom: 6px;
+            text-align: right;
             letter-spacing: 1px;
-            position: absolute;
-            bottom: 20px;
         }
         
-        .glowing-frame {
+        #flight-indicators .units {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-left: 4px;
+            color: #66ccff;
+            font-weight: 400;
+            vertical-align: middle;
+        }
+        
+        #flight-indicators .separator {
+            height: 1px;
+            background: linear-gradient(to right, rgba(0, 204, 255, 0), rgba(0, 204, 255, 0.8), rgba(0, 204, 255, 0));
+            margin: 8px 0;
+        }
+        
+        .altitude-bar-container, .speed-bar-container {
+            width: 100%;
+            height: 4px;
+            background-color: rgba(0, 60, 100, 0.5);
+            border-radius: 2px;
+            margin-top: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .altitude-bar, .speed-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, #0066ff, #00ffff);
+            border-radius: 3px;
+            transition: width 0.3s ease-out;
+        }
+        
+        .altitude-bar::after, .speed-bar::after {
+            content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            border: 2px solid #00ffff;
-            border-radius: 5px;
-            animation: pulse 2s infinite alternate;
+            background: linear-gradient(to right, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0.4) 50%, 
+                transparent 100%);
+            animation: bar-shine 1.5s infinite;
         }
         
-        .mobile-description p,
-        .mobile-book-excerpt p {
-            margin-bottom: 15px;
-            font-size: 1rem;
-            line-height: 1.6;
-            text-align: center;
-            color: #fff;
+        @keyframes bar-shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
         
-        .mobile-book-excerpt {
-            margin: 30px 0;
+        #error-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: #ff0000;
             padding: 20px;
-            background-color: rgba(0, 0, 0, 0.3);
-            border-left: 3px solid #00ffff;
-            border-radius: 5px;
+            border-radius: 10px;
+            border: 2px solid #ff0000;
+            max-width: 80%;
+            max-height: 80%;
+            overflow: auto;
+            z-index: 2000;
+            display: none;
+            font-family: monospace;
         }
         
-        .mobile-book-excerpt h3 {
-            color: #00ffff;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-        
-        .quote {
-            font-style: italic;
-            color: #00ffff !important;
-            font-size: 1.2rem !important;
-            text-align: center;
-            margin: 20px 0;
-        }
-        
-        .mobile-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin: 30px 0;
-        }
-        
-        .mobile-amazon-button,
-        .mobile-x-button {
-            display: block;
-            padding: 15px;
-            text-align: center;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 1.1rem;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-        }
-        
-        .mobile-amazon-button {
-            background-color: #ff3366;
-            color: #000033;
-        }
-        
-        .mobile-x-button {
-            background-color: #1DA1F2;
-            color: #000033;
-        }
-        
-        .mobile-amazon-button:hover,
-        .mobile-x-button:hover {
-            transform: scale(1.05);
-        }
-        
-        .mobile-desktop-message {
-            text-align: center;
-            margin: 30px 0;
-            padding: 15px;
-            border: 1px dashed #00ffff;
-            border-radius: 5px;
-            color: #00ffff;
-            font-size: 0.9rem;
-        }
-        
-        .mobile-game-option {
-            text-align: center;
-            margin: 30px 0;
-            padding: 15px;
-            border: 1px dashed #00ffff;
-            border-radius: 5px;
-            color: #00ffff;
-            font-size: 0.9rem;
-        }
-        
-        .warning-text {
-            color: #ffcc00;
-            font-size: 0.8rem;
-            margin-top: 10px;
-        }
-        
-        /* Animated background elements */
-        .mobile-bg-elements {
-            position: absolute;
+        #start-screen {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
-            z-index: -1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 33, 0.8);
+            color: #00ffff;
+            z-index: 100;
+            background-image: linear-gradient(rgba(0, 0, 33, 0.8), rgba(0, 0, 33, 0.95));
+            background-size: cover;
+            background-position: center;
         }
         
-        .data-fragment {
-            position: absolute;
-            width: 15px;
-            height: 15px;
+        #start-screen h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #00ffff;
+            letter-spacing: 2px;
+            text-align: center;
+            color: #00ffff;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+            }
+            to {
+                text-shadow: 0 0 20px #00ffff, 0 0 30px #00ffff, 0 0 40px #00ffff;
+            }
+        }
+        
+        #start-screen p {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ffff;
+            max-width: 800px;
+            text-align: center;
+            line-height: 1.4;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 1px;
+        }
+        
+        #start-screen .warning {
+            color: #ff3366;
+            text-shadow: 0 0 10px #ff3366;
+            font-weight: bold;
+        }
+        
+        #start-screen .data-fragments {
+            color: #00ffff;
+            text-shadow: 0 0 15px #00ffff;
+            font-weight: bold;
+        }
+        
+        #start-screen .unchipped {
+            color: #ffcc00;
+            text-shadow: 0 0 15px #ffcc00;
+            font-weight: bold;
+        }
+        
+        #start-screen .button-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        #start-screen button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            font-family: 'Orbitron', sans-serif;
             background-color: #00ffff;
-            border-radius: 50%;
-            opacity: 0.3;
-            box-shadow: 0 0 10px #00ffff;
-            animation: float 20s linear infinite;
+            color: #000033;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+            border: 2px solid transparent;
         }
         
-        .data-fragment:nth-child(1) {
-            top: 20%;
-            left: 10%;
-            animation-duration: 25s;
-            animation-delay: 0s;
+        #start-screen button:hover {
+            background-color: #000033;
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            transform: scale(1.05);
         }
         
-        .data-fragment:nth-child(2) {
-            top: 50%;
-            right: 10%;
-            animation-duration: 30s;
-            animation-delay: 5s;
+        #start-screen .book-button {
+            background-color: #ff3366;
+            color: #000033;
         }
         
-        .data-fragment:nth-child(3) {
-            bottom: 30%;
-            left: 30%;
-            animation-duration: 22s;
-            animation-delay: 10s;
+        #start-screen .book-button:hover {
+            background-color: #000033;
+            color: #ff3366;
+            border: 2px solid #ff3366;
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
         }
         
-        .drone-silhouette {
+        #start-screen .x-button {
+            background-color: #1DA1F2;
+            color: #000033;
+        }
+        
+        #start-screen .x-button:hover {
+            background-color: #000033;
+            color: #1DA1F2;
+            border: 2px solid #1DA1F2;
+            box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
+        }
+        
+        #start-screen #start-button {
+            animation: pulse 1.5s infinite alternate;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #start-screen #start-button:before {
+            content: '';
             position: absolute;
-            width: 30px;
-            height: 10px;
-            background-color: #ff0033;
-            border-radius: 3px;
-            opacity: 0.2;
-            box-shadow: 0 0 5px #ff0033;
-            top: 15%;
-            right: -30px;
-            animation: droneFly 40s linear infinite;
-        }
-        
-        @keyframes float {
-            0% {
-                transform: translate(0, 0) scale(1);
-            }
-            25% {
-                transform: translate(100px, 50px) scale(1.2);
-            }
-            50% {
-                transform: translate(200px, -30px) scale(1);
-            }
-            75% {
-                transform: translate(100px, -80px) scale(0.8);
-            }
-            100% {
-                transform: translate(0, 0) scale(1);
-            }
-        }
-        
-        @keyframes droneFly {
-            0% {
-                transform: translateX(0) rotate(0deg);
-                opacity: 0;
-            }
-            10% {
-                opacity: 0.2;
-            }
-            90% {
-                opacity: 0.2;
-            }
-            100% {
-                transform: translateX(-400px) rotate(10deg);
-                opacity: 0;
-            }
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.3), transparent);
+            transform: rotate(45deg);
+            animation: shine 3s linear infinite;
         }
         
         @keyframes pulse {
             0% {
-                box-shadow: 0 0 5px #00ffff;
+                box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
             }
             100% {
-                box-shadow: 0 0 15px #00ffff, 0 0 20px #00ffff;
+                box-shadow: 0 0 25px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.5);
             }
         }
         
-        @keyframes glow {
+        @keyframes shine {
             0% {
-                text-shadow: 0 0 5px #00ffff;
+                left: -100%;
+                top: -100%;
             }
             100% {
-                text-shadow: 0 0 15px #00ffff, 0 0 20px #00ffff;
+                left: 100%;
+                top: 100%;
             }
         }
         
-        #mobile-play-game-button {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            text-align: center;
-            border-radius: 5px;
-            border: none;
+        #x-machina-logo {
+            margin-bottom: 20px;
+            max-width: 90%;
+            height: auto;
+        }
+        
+        #game-over-screen .button-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        #game-over-screen button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            font-family: 'Orbitron', sans-serif;
             background-color: #00ffff;
             color: #000033;
-            font-weight: bold;
-            font-size: 1.1rem;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-            font-family: 'Orbitron', sans-serif;
+            border: none;
+            border-radius: 5px;
             cursor: pointer;
             transition: all 0.3s ease;
+            letter-spacing: 1px;
+            border: 2px solid transparent;
         }
         
-        #mobile-play-game-button:hover {
-            background-color: #00ccff;
+        #game-over-screen button:hover {
+            background-color: #000033;
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
             transform: scale(1.05);
         }
         
-        /* Media query for mobile devices */
+        #game-over-screen .book-button {
+            background-color: #ff3366;
+            color: #000033;
+        }
+        
+        #game-over-screen .book-button:hover {
+            background-color: #000033;
+            color: #ff3366;
+            border: 2px solid #ff3366;
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+        }
+        
+        #game-over-screen .x-button {
+            background-color: #1DA1F2;
+            color: #000033;
+        }
+        
+        #game-over-screen .x-button:hover {
+            background-color: #000033;
+            color: #1DA1F2;
+            border: 2px solid #1DA1F2;
+            box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
+        }
+        
+        /* Pause screen styles */
+        #pause-screen .x-button {
+            background-color: #1DA1F2;
+            color: #000033;
+        }
+        
+        #pause-screen .x-button:hover {
+            background-color: #000033;
+            color: #1DA1F2;
+            border: 2px solid #1DA1F2;
+            box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
+        }
+        
+        /* Mobile Touch Controls */
+        #mobile-controls {
+            display: none; /* Hidden by default */
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            text-align: center;
+        }
+        
+        #joystick-container {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            width: 150px;
+            height: 150px;
+            background-color: rgba(0, 255, 255, 0.1);
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 50%;
+            touch-action: none;
+        }
+        
+        #joystick {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background-color: rgba(0, 255, 255, 0.5);
+            border: 2px solid #00ffff;
+            border-radius: 50%;
+            touch-action: none;
+        }
+        
+        #action-buttons {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-gap: 10px;
+        }
+        
+        .action-button {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(0, 255, 255, 0.2);
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            border-radius: 50%;
+            color: #00ffff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            touch-action: none;
+        }
+        
+        .action-button.fire {
+            background-color: rgba(255, 51, 102, 0.2);
+            border: 2px solid rgba(255, 51, 102, 0.5);
+            color: #ff3366;
+            grid-column: span 2;
+        }
+        
+        .action-button:active {
+            transform: scale(0.95);
+            opacity: 0.8;
+        }
+        
+        .camera-toggle-button {
+            position: fixed;
+            top: 120px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            touch-action: manipulation;
+        }
+        
+        .camera-toggle-button:active {
+            transform: scale(0.95);
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        
+        /* Mobile Responsive Styles */
         @media (max-width: 768px) {
-            #mobile-preview {
+            /* Show mobile controls on touch devices */
+            #mobile-controls {
                 display: block;
             }
             
-            #loading, #game, .game-screen, #left-controls-panel, #debug-panel, 
-            #health-container, #cooldown-container, #score-display {
-                display: none !important;
+            /* Hide keyboard controls on mobile */
+            #left-controls-panel {
+                display: none;
             }
             
-            /* For devices in game mode, override styles */
-            body.mobile-game-mode #mobile-preview {
-                display: none !important;
+            /* Make flight indicators smaller on mobile */
+            #flight-indicators {
+                top: 70px;
+                right: 10px;
+                width: 100px;
+                font-size: 90%;
             }
             
-            body.mobile-game-mode #loading,
-            body.mobile-game-mode #game,
-            body.mobile-game-mode .game-screen,
-            body.mobile-game-mode #score-display {
-                display: block !important;
+            /* Reduce size of health bar */
+            #health-bar-container {
+                width: 150px;
+            }
+            
+            /* Scale score display */
+            #score-display {
+                font-size: 18px;
+                padding: 6px 12px;
+            }
+            
+            /* Adjust game screen text sizes */
+            .game-screen h1 {
+                font-size: 2.2em;
+                text-align: center;
+                margin: 10px;
+                padding: 0 15px;
+            }
+            
+            .game-screen p {
+                font-size: 1.2em;
+                margin-bottom: 15px;
+                padding: 0 20px;
+                text-align: center;
+            }
+            
+            /* Make button container stack vertically on very small screens */
+            @media (max-width: 480px) {
+                .button-container {
+                    flex-direction: column;
+                    align-items: center;
+                }
+                
+                #start-screen button,
+                #game-over-screen button,
+                #pause-screen button {
+                    margin-bottom: 10px;
+                    min-width: 200px;
+                }
+            }
+        }
+        
+        /* Device orientation warning */
+        #orientation-warning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 33, 0.9);
+            color: #00ffff;
+            z-index: 2000;
+            text-align: center;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        #orientation-warning img {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            animation: rotate90 1.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes rotate90 {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(90deg); }
+        }
+        
+        #orientation-warning p {
+            font-size: 1.2em;
+            font-family: 'Orbitron', sans-serif;
+            margin: 10px 20px;
+        }
+        
+        /* Only show orientation warning on very small heights in landscape mode */
+        @media (max-height: 450px) and (orientation: landscape) {
+            #orientation-warning {
+                display: flex;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Mobile Book Preview (only shown on mobile devices) -->
-    <div id="mobile-preview">
-        <div class="mobile-content">
-            <h1 class="mobile-title">X-Machina: The Unchipped One</h1>
-            <div class="mobile-tagline">THE LAST PERFECTION IN HUMANITY</div>
-            
-            <div class="mobile-book-cover">
-                <!-- Stylized book cover with text -->
-                <div class="book-title">X-MACHINA</div>
-                <div class="book-subtitle">THE UNCHIPPED ONE</div>
-                <div class="book-author">F. BAYRAKTAR</div>
-                <div class="glowing-frame"></div>
-            </div>
-            
-            <div class="mobile-description">
-                <p>In a world where every human mind has been chipped and connected to X-MACHINA's vast neural network, you are the last free human consciousness.</p>
-                <p>Aurora Prime - a city of neon and shadow, controlled by an AI that was meant to serve but now rules.</p>
-                <p>As the Unchipped One, you represent the final hope for humanity's true potential.</p>
-            </div>
-            
-            <div class="mobile-book-excerpt">
-                <h3>Book Preview</h3>
-                <p class="quote">"The only purpose of consciousness is to create more consciousness."</p>
-                <p>The blue data fragments scattered through Aurora Prime hold the key to understanding what it truly means to be human in a world dominated by artificial intelligence.</p>
-                <p>Every decision you make shapes not just your fate, but the future of consciousness itself.</p>
-            </div>
-            
-            <div class="mobile-buttons">
-                <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank" class="mobile-amazon-button">READ ON AMAZON</a>
-                <a href="https://x.com/Xmachinamodel" target="_blank" class="mobile-x-button">FOLLOW ON X</a>
-            </div>
-            
-            <div class="mobile-desktop-message">
-                <p>Experience the full immersive X-MACHINA game on desktop</p>
-            </div>
-            
-            <div class="mobile-game-option">
-                <button id="mobile-play-game-button">PLAY GAME ANYWAY</button>
-                <p class="warning-text">Note: Game is optimized for desktop. Touch controls limited.</p>
-            </div>
-            
-            <!-- Animated background elements -->
-            <div class="mobile-bg-elements">
-                <div class="data-fragment"></div>
-                <div class="data-fragment"></div>
-                <div class="data-fragment"></div>
-                <div class="drone-silhouette"></div>
-            </div>
-        </div>
-    </div>
-    
     <div id="loading">
         <h1>Loading X-Machina</h1>
         <div class="spinner"></div>
@@ -692,6 +825,13 @@
     </div>
     
     <div id="error-display"></div>
+    
+    <!-- Orientation warning for mobile devices -->
+    <div id="orientation-warning">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzAwZmZmZiIgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiPjxwYXRoIGQ9Ik0xNyA5LjJINy44QTYuMiA2LjIgMCAwIDAgMS42IDE1LjRWMTQuNEE1LjIgNS4yIDAgMCAxIDYuOCA5LjJIMTdNMTkgNVYyQzE5IDEuNDUgMTguNTUgMSAxOCAxSDZDNS40NSAxIDUgMS40NSA1IDJWNUI1IDE5LjU1IDUuNDUgMjAgNiAyMEgxOEMxOC41NSAyMCAxOSAxOS41NSAxOSAxOVYxMkgyM1Y4SDE5VjVaIj48L3BhdGg+PC9zdmc+">
+        <p>Please rotate your device to portrait mode for optimal experience</p>
+        <p>Or turn off screen rotation lock and hold your device in portrait orientation</p>
+    </div>
     
     <canvas id="game"></canvas>
     <div id="health-bar-container">
@@ -706,7 +846,7 @@
         <p><span class="warning">X-MACHINA CONTROLS THE CITY</span></p>
         <p><span class="warning">AVOID DRONES</span> OR <span class="warning">ELIMINATE</span></p>
         <p>COLLECT <span class="data-fragments">COOL BLUE DATA FRAGMENTS</span></p>
-        <p>YOU ARE <span class="unchipped">THE UNCHIPPED ONE</span>, THE LAST PERFECTION IN HUMANITY</p>
+        <p>YOU ARE <span class="unchipped">THE UNCHIPPED ONE</span>, THE LAST PERFECT IN HUMANITY</p>
         <div class="button-container">
             <button id="start-button">START TO GAME</button>
             <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank">
@@ -825,9 +965,316 @@
         </div>
     </div>
     
+    <div id="mobile-controls">
+        <div id="joystick-container">
+            <div id="joystick"></div>
+        </div>
+        <div id="action-buttons">
+            <button class="action-button fire">Fire</button>
+        </div>
+        <button id="toggle-camera-view" class="camera-toggle-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#00ffff"><path d="M3 9h4V5H3v4zm0 5h4v-4H3v4zm5 0h4v-4H8v4zm5 0h4v-4h-4v4zM8 9h4V5H8v4zm5-4v4h4V5h-4zm5 9h4v-4h-4v4zm0 5h4v-4h-4v4zm-5 0h4v-4h-4v4zm-5 0h4v-4H8v4zm-5 0h4v-4H3v4z"/></svg>
+        </button>
+    </div>
+    
     <script>
         // Force cache refresh with timestamp
         console.log("Cache refresh timestamp: ", new Date().toISOString());
+        
+        // Mobile device detection
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        console.log("Mobile device detected:", isMobile);
+        
+        // Set up orientation change detection
+        window.addEventListener('orientationchange', checkOrientation);
+        window.addEventListener('resize', checkOrientation);
+        
+        function checkOrientation() {
+            // Check if device is in landscape mode and has a small height
+            if (window.matchMedia("(max-height: 450px) and (orientation: landscape)").matches && isMobile) {
+                document.getElementById('orientation-warning').style.display = 'flex';
+            } else {
+                document.getElementById('orientation-warning').style.display = 'none';
+            }
+        }
+        
+        // Check orientation immediately
+        checkOrientation();
+        
+        // Touch control variables
+        let joystickActive = false;
+        let joystickOrigin = { x: 0, y: 0 };
+        let currentJoystickPos = { x: 0, y: 0 };
+        let joystickVector = { x: 0, y: 0 };
+        const maxJoystickDistance = 50; // Maximum distance joystick can move
+        
+        // Set up touch controls if mobile
+        if (isMobile) {
+            setupMobileControls();
+        }
+        
+        function setupMobileControls() {
+            const joystickContainer = document.getElementById('joystick-container');
+            const joystick = document.getElementById('joystick');
+            const fireButton = document.querySelector('.action-button.fire');
+            
+            // Initialize joystick center position
+            const containerRect = joystickContainer.getBoundingClientRect();
+            joystickOrigin.x = containerRect.left + containerRect.width / 2;
+            joystickOrigin.y = containerRect.top + containerRect.height / 2;
+            
+            // Joystick touch start
+            joystickContainer.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                joystickActive = true;
+                
+                // Update joystick container position if needed
+                const containerRect = joystickContainer.getBoundingClientRect();
+                joystickOrigin.x = containerRect.left + containerRect.width / 2;
+                joystickOrigin.y = containerRect.top + containerRect.height / 2;
+                
+                // Move joystick to touch position (within limits)
+                handleJoystickMove(e);
+            });
+            
+            // Joystick touch move
+            document.addEventListener('touchmove', function(e) {
+                if (joystickActive) {
+                    e.preventDefault();
+                    handleJoystickMove(e);
+                }
+            }, { passive: false });
+            
+            // Joystick touch end
+            document.addEventListener('touchend', function(e) {
+                if (joystickActive) {
+                    joystickActive = false;
+                    
+                    // Return joystick to center
+                    joystick.style.transform = 'translate(-50%, -50%)';
+                    
+                    // Reset joystick vector (stop movement)
+                    joystickVector.x = 0;
+                    joystickVector.y = 0;
+                    
+                    // Trigger joystick release event for the game
+                    triggerJoystickMovement();
+                }
+            });
+            
+            // Fire button touch
+            fireButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Trigger fire event for the game
+                fireWeapon();
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(255, 51, 102, 0.4)';
+            });
+            
+            fireButton.addEventListener('touchend', function() {
+                // Reset visual state
+                this.style.backgroundColor = 'rgba(255, 51, 102, 0.2)';
+            });
+            
+            // Add up/down buttons (for 3D movement)
+            const actionButtons = document.getElementById('action-buttons');
+            
+            // Create Up button
+            const upButton = document.createElement('button');
+            upButton.className = 'action-button';
+            upButton.textContent = 'Up';
+            actionButtons.insertBefore(upButton, fireButton);
+            
+            // Create Down button
+            const downButton = document.createElement('button');
+            downButton.className = 'action-button';
+            downButton.textContent = 'Down';
+            actionButtons.insertBefore(downButton, fireButton);
+            
+            // Camera toggle button
+            const toggleCameraButton = document.getElementById('toggle-camera-view');
+            toggleCameraButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Simulate V key press to toggle camera view
+                const keydownEvent = new KeyboardEvent('keydown', {
+                    code: 'KeyV',
+                    key: 'v',
+                    bubbles: true
+                });
+                document.dispatchEvent(keydownEvent);
+                
+                // Key up event
+                setTimeout(() => {
+                    const keyupEvent = new KeyboardEvent('keyup', {
+                        code: 'KeyV',
+                        key: 'v',
+                        bubbles: true
+                    });
+                    document.dispatchEvent(keyupEvent);
+                }, 50);
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                setTimeout(() => {
+                    this.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                }, 200);
+            });
+            
+            // Up button events
+            upButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Trigger up movement
+                triggerShipMovement('up', true);
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(0, 255, 255, 0.4)';
+            });
+            
+            upButton.addEventListener('touchend', function() {
+                // Stop up movement
+                triggerShipMovement('up', false);
+                
+                // Reset visual state
+                this.style.backgroundColor = 'rgba(0, 255, 255, 0.2)';
+            });
+            
+            // Down button events
+            downButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Trigger down movement
+                triggerShipMovement('down', true);
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(0, 255, 255, 0.4)';
+            });
+            
+            downButton.addEventListener('touchend', function() {
+                // Stop down movement
+                triggerShipMovement('down', false);
+                
+                // Reset visual state
+                this.style.backgroundColor = 'rgba(0, 255, 255, 0.2)';
+            });
+        }
+        
+        function handleJoystickMove(e) {
+            const touch = e.touches[0];
+            const joystick = document.getElementById('joystick');
+            
+            // Calculate joystick position relative to center
+            const deltaX = touch.clientX - joystickOrigin.x;
+            const deltaY = touch.clientY - joystickOrigin.y;
+            
+            // Calculate distance from center
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            // Normalize to maximum distance
+            const limitedDistance = Math.min(distance, maxJoystickDistance);
+            const angle = Math.atan2(deltaY, deltaX);
+            
+            // Calculate limited position
+            const limitedX = limitedDistance * Math.cos(angle);
+            const limitedY = limitedDistance * Math.sin(angle);
+            
+            // Adjust joystick position
+            joystick.style.transform = `translate(calc(-50% + ${limitedX}px), calc(-50% + ${limitedY}px))`;
+            
+            // Calculate joystick vector (normalized -1 to 1)
+            joystickVector.x = limitedX / maxJoystickDistance;
+            joystickVector.y = limitedY / maxJoystickDistance;
+            
+            // Trigger joystick movement for the game
+            triggerJoystickMovement();
+        }
+        
+        // Trigger joystick movement event in the game
+        function triggerJoystickMovement() {
+            // Forward/backward movement (y-axis of joystick)
+            if (joystickVector.y < -0.3) {
+                triggerShipMovement('forward', true);
+            } else if (joystickVector.y > 0.3) {
+                triggerShipMovement('backward', true);
+            } else {
+                // Stop forward/backward movement
+                triggerShipMovement('forward', false);
+                triggerShipMovement('backward', false);
+            }
+            
+            // Left/right rotation (x-axis of joystick)
+            if (joystickVector.x < -0.3) {
+                triggerShipMovement('left', true);
+            } else if (joystickVector.x > 0.3) {
+                triggerShipMovement('right', true);
+            } else {
+                // Stop left/right rotation
+                triggerShipMovement('left', false);
+                triggerShipMovement('right', false);
+            }
+        }
+        
+        // Trigger ship movement by simulating keyboard events
+        function triggerShipMovement(direction, isStarting) {
+            let keyCode;
+            
+            switch (direction) {
+                case 'forward':
+                    keyCode = 'KeyW';
+                    break;
+                case 'backward':
+                    keyCode = 'KeyS';
+                    break;
+                case 'left':
+                    keyCode = 'KeyA';
+                    break;
+                case 'right':
+                    keyCode = 'KeyD';
+                    break;
+                case 'up':
+                    keyCode = 'Space';
+                    break;
+                case 'down':
+                    keyCode = 'ShiftLeft';
+                    break;
+                default:
+                    return;
+            }
+            
+            // Create and dispatch the event
+            const eventType = isStarting ? 'keydown' : 'keyup';
+            const event = new KeyboardEvent(eventType, {
+                code: keyCode,
+                key: keyCode === 'Space' ? ' ' : keyCode === 'ShiftLeft' ? 'Shift' : keyCode.slice(-1).toLowerCase(),
+                bubbles: true
+            });
+            
+            document.dispatchEvent(event);
+        }
+        
+        // Fire weapon by simulating F key press
+        function fireWeapon() {
+            // Key down event
+            const keydownEvent = new KeyboardEvent('keydown', {
+                code: 'KeyF',
+                key: 'f',
+                bubbles: true
+            });
+            document.dispatchEvent(keydownEvent);
+            
+            // Key up event (immediate release)
+            setTimeout(() => {
+                const keyupEvent = new KeyboardEvent('keyup', {
+                    code: 'KeyF',
+                    key: 'f',
+                    bubbles: true
+                });
+                document.dispatchEvent(keyupEvent);
+            }, 50);
+        }
         
         // Add error handling for missing modules
         window.addEventListener('error', function(e) {
@@ -890,224 +1337,6 @@
                     document.getElementById('game-over-screen').style.display = 'none';
                 }
             });
-        });
-    </script>
-    
-    <!-- Mobile detection script -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Function to check if device is mobile
-            function isMobileDevice() {
-                return (window.innerWidth <= 768) || 
-                       (navigator.maxTouchPoints > 0 && 
-                        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-            }
-            
-            // Check if mobile and show appropriate content
-            function checkDevice() {
-                if (isMobileDevice()) {
-                    console.log("Mobile device detected, showing book preview");
-                    
-                    // Only switch to book preview if not already in game mode
-                    if (!document.body.classList.contains('mobile-game-mode')) {
-                        // Show mobile content, hide game content
-                        document.getElementById('mobile-preview').style.display = 'block';
-                        
-                        // Hide game elements
-                        const gameElements = document.querySelectorAll('#loading, #game, .game-screen, #left-controls-panel, #debug-panel, #health-container, #cooldown-container, #score-display');
-                        gameElements.forEach(element => {
-                            if (element) element.style.display = 'none';
-                        });
-                        
-                        // Animate the data fragments
-                        animateDataFragments();
-                    }
-                } else {
-                    console.log("Desktop device detected, showing game");
-                    document.getElementById('mobile-preview').style.display = 'none';
-                    document.body.classList.remove('mobile-game-mode');
-                }
-            }
-            
-            // Add touch controls for mobile game mode
-            function setupTouchControls() {
-                // Mobile virtual joystick for movement
-                const gameCanvas = document.getElementById('game');
-                if (!gameCanvas) return;
-                
-                let touchStartX = 0;
-                let touchStartY = 0;
-                let isTouching = false;
-                
-                // Touch start - store initial position
-                gameCanvas.addEventListener('touchstart', function(e) {
-                    const touch = e.touches[0];
-                    touchStartX = touch.clientX;
-                    touchStartY = touch.clientY;
-                    isTouching = true;
-                    
-                    // Add firing on double tap
-                    if (e.touches.length === 1 && e.timeStamp - lastTapTime < 300) {
-                        // Simulate F key press for firing
-                        const fireEvent = new KeyboardEvent('keydown', {
-                            code: 'KeyF',
-                            key: 'f',
-                            bubbles: true
-                        });
-                        document.dispatchEvent(fireEvent);
-                        e.preventDefault(); // Prevent zoom
-                    }
-                    lastTapTime = e.timeStamp;
-                });
-                
-                // Touch move - calculate direction
-                gameCanvas.addEventListener('touchmove', function(e) {
-                    if (!isTouching) return;
-                    
-                    const touch = e.touches[0];
-                    const deltaX = touch.clientX - touchStartX;
-                    const deltaY = touch.clientY - touchStartY;
-                    
-                    // Simulate key presses based on touch movement
-                    simulateMovement(deltaX, deltaY);
-                    
-                    e.preventDefault(); // Prevent scrolling
-                });
-                
-                // Touch end - reset
-                gameCanvas.addEventListener('touchend', function(e) {
-                    isTouching = false;
-                    resetMovement();
-                });
-                
-                // For tracking double-taps
-                let lastTapTime = 0;
-                
-                // Prevent pinch zoom on mobile
-                document.addEventListener('gesturestart', function(e) {
-                    e.preventDefault();
-                });
-            }
-            
-            // Simulate keyboard movement from touch input
-            function simulateMovement(deltaX, deltaY) {
-                // Reset all movement keys
-                resetMovement();
-                
-                // Set threshold for movement
-                const threshold = 20;
-                
-                // Horizontal movement
-                if (deltaX < -threshold) {
-                    // Simulate left key
-                    triggerKeyEvent('KeyA', true);
-                } else if (deltaX > threshold) {
-                    // Simulate right key
-                    triggerKeyEvent('KeyD', true);
-                }
-                
-                // Vertical movement
-                if (deltaY < -threshold) {
-                    // Simulate up key
-                    triggerKeyEvent('KeyW', true);
-                } else if (deltaY > threshold) {
-                    // Simulate down key
-                    triggerKeyEvent('KeyS', true);
-                }
-            }
-            
-            // Reset all movement keys
-            function resetMovement() {
-                triggerKeyEvent('KeyW', false);
-                triggerKeyEvent('KeyA', false);
-                triggerKeyEvent('KeyS', false);
-                triggerKeyEvent('KeyD', false);
-            }
-            
-            // Trigger keyboard event
-            function triggerKeyEvent(code, isDown) {
-                const eventType = isDown ? 'keydown' : 'keyup';
-                const event = new KeyboardEvent(eventType, {
-                    code: code,
-                    key: code.charAt(code.length - 1).toLowerCase(),
-                    bubbles: true
-                });
-                document.dispatchEvent(event);
-            }
-            
-            // Animate data fragments with random movements
-            function animateDataFragments() {
-                const fragments = document.querySelectorAll('.data-fragment');
-                fragments.forEach((fragment, index) => {
-                    // Set random starting positions
-                    const randomX = Math.random() * 80 + 10; // 10-90%
-                    const randomY = Math.random() * 80 + 10; // 10-90%
-                    fragment.style.left = `${randomX}%`;
-                    fragment.style.top = `${randomY}%`;
-                });
-            }
-            
-            // Setup event listener for the play game button
-            const playGameButton = document.getElementById('mobile-play-game-button');
-            if (playGameButton) {
-                playGameButton.addEventListener('click', function() {
-                    console.log("Switching to game mode on mobile");
-                    document.body.classList.add('mobile-game-mode');
-                    document.getElementById('mobile-preview').style.display = 'none';
-                    
-                    // Show game elements
-                    document.getElementById('loading').style.display = 'flex';
-                    document.getElementById('game').style.display = 'block';
-                    document.getElementById('start-screen').style.display = 'flex';
-                    
-                    // Setup touch controls
-                    setupTouchControls();
-                    
-                    // Add a back button to return to book preview
-                    addBackToBookButton();
-                });
-            }
-            
-            // Add a button to go back to book preview
-            function addBackToBookButton() {
-                // Create back button if it doesn't exist
-                if (!document.getElementById('back-to-book-button')) {
-                    const backButton = document.createElement('button');
-                    backButton.id = 'back-to-book-button';
-                    backButton.textContent = 'BACK TO BOOK';
-                    backButton.style.position = 'fixed';
-                    backButton.style.top = '10px';
-                    backButton.style.right = '10px';
-                    backButton.style.zIndex = '2000';
-                    backButton.style.backgroundColor = '#ff3366';
-                    backButton.style.color = '#fff';
-                    backButton.style.border = 'none';
-                    backButton.style.borderRadius = '5px';
-                    backButton.style.padding = '8px 12px';
-                    backButton.style.fontFamily = 'Orbitron, sans-serif';
-                    backButton.style.fontSize = '12px';
-                    
-                    backButton.addEventListener('click', function() {
-                        console.log("Switching back to book preview");
-                        document.body.classList.remove('mobile-game-mode');
-                        document.getElementById('mobile-preview').style.display = 'block';
-                        
-                        // Hide game elements
-                        const gameElements = document.querySelectorAll('#loading, #game, .game-screen, #left-controls-panel, #debug-panel, #health-container, #cooldown-container, #score-display, #back-to-book-button');
-                        gameElements.forEach(element => {
-                            if (element) element.style.display = 'none';
-                        });
-                    });
-                    
-                    document.body.appendChild(backButton);
-                }
-            }
-            
-            // Run check on page load
-            checkDevice();
-            
-            // Run check on resize
-            window.addEventListener('resize', checkDevice);
         });
     </script>
 </body>
