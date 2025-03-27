@@ -43,599 +43,86 @@
             }
         }
     </script>
-    <script type="module">
-        // Import the game module
-        import { initGame } from './script.js?v=1.1';
-        
-        // Listen for the game start event
-        document.addEventListener('gameStart', async function() {
-            console.log("Game start event received");
-            try {
-                await initGame();
-                console.log("Game initialized successfully");
-            } catch (error) {
-                console.error("Error initializing game:", error);
-            }
-        });
-        
-        // Initialize game controls
-        window.gameControl = window.gameControl || {};
-    </script>
+    <script type="module" src="script.js?v=1.1"></script>
     <script>
         // Force cache refresh with timestamp
         console.log("Cache refresh timestamp: ", new Date().toISOString());
         
-        // Mobile device detection with improved accuracy
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
-        console.log("Mobile device detected:", isMobile);
-        
-        // Initialize game control interface
+        // Initialize game control bridge
         window.gameControl = {
-            startGame: function() {
-                console.log("Default start game function called");
-                // Hide the start screen
-                document.getElementById('start-screen').style.display = 'none';
-                // Show game canvas
-                const gameCanvas = document.getElementById('game');
-                gameCanvas.style.display = 'block';
-                // Show mobile controls if on mobile
-                if (isMobile) {
-                    document.getElementById('mobile-controls').style.display = 'block';
-                }
-                // Hide loading screen if it's still visible
-                document.getElementById('loading').style.display = 'none';
-                
-                // Dispatch a custom event that the game module can listen for
-                const gameStartEvent = new CustomEvent('gameStart');
-                document.dispatchEvent(gameStartEvent);
-            },
+            startGame: null,  // Will be filled by the module
+            pauseGame: null,
             resumeGame: null,
             restartGame: null
         };
         
-        // Add start button event listeners
-        document.addEventListener('DOMContentLoaded', function() {
+        // Ensure game module loads properly
+        window.addEventListener('load', function() {
+            // Set up button handlers
             const startButton = document.getElementById('start-button');
+            const resumeButton = document.getElementById('resume-button');
+            const restartButton = document.getElementById('restart-button');
             
-            function handleStartGame(e) {
+            function handleGameStart(e) {
                 e.preventDefault();
-                e.stopPropagation();
-                console.log("Start button activated");
-                
-                // Visual feedback
-                startButton.style.transform = 'scale(0.95)';
-                startButton.style.opacity = '0.9';
-                
-                // Start the game
-                if (window.gameControl && typeof window.gameControl.startGame === 'function') {
-                    window.gameControl.startGame();
-                    console.log("Game start function called successfully");
-                } else {
-                    console.error("Game control not properly initialized");
-                }
-            }
-            
-            // Remove any existing listeners and add fresh ones
-            const newStartButton = startButton.cloneNode(true);
-            startButton.parentNode.replaceChild(newStartButton, startButton);
-            
-            // Add both touch and click handlers
-            newStartButton.addEventListener('touchstart', handleStartGame, { passive: false });
-            newStartButton.addEventListener('click', handleStartGame);
-            
-            // Reset visual state on touch/click end
-            newStartButton.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                this.style.transform = '';
-                this.style.opacity = '';
-            });
-            
-            // Ensure mobile controls are properly initialized
-            if (isMobile) {
-                setupMobileControls();
-            }
-        });
-        
-        // Set up orientation change detection
-        window.addEventListener('orientationchange', checkOrientation);
-        window.addEventListener('resize', checkOrientation);
-        
-        function checkOrientation() {
-            // Check if device is in landscape mode and has a small height
-            if (window.matchMedia("(max-height: 450px) and (orientation: landscape)").matches && isMobile) {
-                document.getElementById('orientation-warning').style.display = 'flex';
-            } else {
-                document.getElementById('orientation-warning').style.display = 'none';
-            }
-        }
-        
-        // Check orientation immediately
-        checkOrientation();
-        
-        // Touch control variables
-        let joystickActive = false;
-        let joystickOrigin = { x: 0, y: 0 };
-        let currentJoystickPos = { x: 0, y: 0 };
-        let joystickVector = { x: 0, y: 0 };
-        const maxJoystickDistance = 50; // Maximum distance joystick can move
-        
-        // Set up touch controls if mobile
-        if (isMobile) {
-            setupMobileControls();
-        }
-        
-        function setupMobileControls() {
-            const joystickContainer = document.getElementById('joystick-container');
-            const joystick = document.getElementById('joystick');
-            const fireButton = document.querySelector('.action-button.fire');
-            
-            // Initialize joystick center position
-            const containerRect = joystickContainer.getBoundingClientRect();
-            joystickOrigin.x = containerRect.left + containerRect.width / 2;
-            joystickOrigin.y = containerRect.top + containerRect.height / 2;
-            
-            // Joystick touch start
-            joystickContainer.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                joystickActive = true;
-                
-                // Update joystick container position if needed
-                const containerRect = joystickContainer.getBoundingClientRect();
-                joystickOrigin.x = containerRect.left + containerRect.width / 2;
-                joystickOrigin.y = containerRect.top + containerRect.height / 2;
-                
-                // Move joystick to touch position (within limits)
-                handleJoystickMove(e);
-            });
-            
-            // Joystick touch move
-            document.addEventListener('touchmove', function(e) {
-                if (joystickActive) {
-                    e.preventDefault();
-                    handleJoystickMove(e);
-                }
-            }, { passive: false });
-            
-            // Joystick touch end
-            document.addEventListener('touchend', function(e) {
-                if (joystickActive) {
-                    joystickActive = false;
-                    
-                    // Return joystick to center
-                    joystick.style.transform = 'translate(-50%, -50%)';
-                    
-                    // Reset joystick vector (stop movement)
-                    joystickVector.x = 0;
-                    joystickVector.y = 0;
-                    
-                    // Trigger joystick release event for the game
-                    triggerJoystickMovement();
-                }
-            });
-            
-            // Fire button touch
-            fireButton.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                
-                // Trigger fire event for the game
-                fireWeapon();
-                
-                // Visual feedback
-                this.style.backgroundColor = 'rgba(255, 51, 102, 0.4)';
-            });
-            
-            fireButton.addEventListener('touchend', function() {
-                // Reset visual state
-                this.style.backgroundColor = 'rgba(255, 51, 102, 0.2)';
-            });
-            
-            // Add up/down buttons (for 3D movement)
-            const actionButtons = document.getElementById('action-buttons');
-            
-            // Create Up button and Down button - We'll use dedicated buttons now
-            const upButton = document.querySelector('.up-button');
-            const downButton = document.querySelector('.down-button');
-            
-            // Up button events
-            upButton.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                
-                // Trigger up movement
-                triggerShipMovement('up', true);
-                
-                // Visual feedback
-                this.style.backgroundColor = 'rgba(0, 255, 255, 0.4)';
-            });
-            
-            upButton.addEventListener('touchend', function() {
-                // Stop up movement
-                triggerShipMovement('up', false);
-                
-                // Reset visual state
-                this.style.backgroundColor = 'rgba(0, 255, 255, 0.2)';
-            });
-            
-            // Down button events
-            downButton.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                
-                // Trigger down movement
-                triggerShipMovement('down', true);
-                
-                // Visual feedback
-                this.style.backgroundColor = 'rgba(0, 255, 255, 0.4)';
-            });
-            
-            downButton.addEventListener('touchend', function() {
-                // Stop down movement
-                triggerShipMovement('down', false);
-                
-                // Reset visual state
-                this.style.backgroundColor = 'rgba(0, 255, 255, 0.2)';
-            });
-            
-            // Camera toggle button
-            const toggleCameraButton = document.getElementById('toggle-camera-view');
-            toggleCameraButton.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                
-                // Simulate V key press to toggle camera view
-                const keydownEvent = new KeyboardEvent('keydown', {
-                    code: 'KeyV',
-                    key: 'v',
-                    bubbles: true
+                console.log('Start button activated');
+                document.getElementById('start-screen').style.display = 'none';
+                const startEvent = new CustomEvent('gameStart', {
+                    detail: { timestamp: Date.now() }
                 });
-                document.dispatchEvent(keydownEvent);
-                
-                // Key up event
-                setTimeout(() => {
-                    const keyupEvent = new KeyboardEvent('keyup', {
-                        code: 'KeyV',
-                        key: 'v',
-                        bubbles: true
-                    });
-                    document.dispatchEvent(keyupEvent);
-                }, 50);
-                
-                // Visual feedback
-                this.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                setTimeout(() => {
-                    this.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                }, 200);
-            });
+                document.dispatchEvent(startEvent);
+            }
             
-            // Mobile pause button
-            const pauseButton = document.getElementById('mobile-pause');
-            pauseButton.addEventListener('touchstart', function(e) {
+            function handleGameResume(e) {
                 e.preventDefault();
-                
-                // Simulate ESC key press to pause game
-                const keydownEvent = new KeyboardEvent('keydown', {
-                    code: 'Escape',
-                    key: 'Escape',
-                    bubbles: true
-                });
-                document.dispatchEvent(keydownEvent);
-                
-                // Key up event
-                setTimeout(() => {
-                    const keyupEvent = new KeyboardEvent('keyup', {
-                        code: 'Escape',
-                        key: 'Escape',
-                        bubbles: true
-                    });
-                    document.dispatchEvent(keyupEvent);
-                }, 50);
-                
-                // Visual feedback
-                this.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-                setTimeout(() => {
-                    this.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
-                }, 200);
-            });
-        }
-        
-        function handleJoystickMove(e) {
-            const touch = e.touches[0];
-            const joystick = document.getElementById('joystick');
-            
-            // Calculate joystick position relative to center
-            const deltaX = touch.clientX - joystickOrigin.x;
-            const deltaY = touch.clientY - joystickOrigin.y;
-            
-            // Calculate distance from center
-            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            
-            // Normalize to maximum distance
-            const limitedDistance = Math.min(distance, maxJoystickDistance);
-            const angle = Math.atan2(deltaY, deltaX);
-            
-            // Calculate limited position
-            const limitedX = limitedDistance * Math.cos(angle);
-            const limitedY = limitedDistance * Math.sin(angle);
-            
-            // Adjust joystick position
-            joystick.style.transform = `translate(calc(-50% + ${limitedX}px), calc(-50% + ${limitedY}px))`;
-            
-            // Calculate joystick vector (normalized -1 to 1)
-            joystickVector.x = limitedX / maxJoystickDistance;
-            joystickVector.y = limitedY / maxJoystickDistance;
-            
-            // Trigger joystick movement for the game
-            triggerJoystickMovement();
-        }
-        
-        // Trigger joystick movement event in the game
-        function triggerJoystickMovement() {
-            // Forward/backward movement (y-axis of joystick)
-            if (joystickVector.y < -0.3) {
-                triggerShipMovement('forward', true);
-            } else if (joystickVector.y > 0.3) {
-                triggerShipMovement('backward', true);
-            } else {
-                // Stop forward/backward movement
-                triggerShipMovement('forward', false);
-                triggerShipMovement('backward', false);
-            }
-            
-            // Left/right rotation (x-axis of joystick)
-            if (joystickVector.x < -0.3) {
-                triggerShipMovement('left', true);
-            } else if (joystickVector.x > 0.3) {
-                triggerShipMovement('right', true);
-            } else {
-                // Stop left/right rotation
-                triggerShipMovement('left', false);
-                triggerShipMovement('right', false);
-            }
-        }
-        
-        // Trigger ship movement by simulating keyboard events
-        function triggerShipMovement(direction, isStarting) {
-            let keyCode;
-            
-            switch (direction) {
-                case 'forward':
-                    keyCode = 'KeyW';
-                    break;
-                case 'backward':
-                    keyCode = 'KeyS';
-                    break;
-                case 'left':
-                    keyCode = 'KeyA';
-                    break;
-                case 'right':
-                    keyCode = 'KeyD';
-                    break;
-                case 'up':
-                    keyCode = 'Space';
-                    break;
-                case 'down':
-                    keyCode = 'ShiftLeft';
-                    break;
-                default:
-                    return;
-            }
-            
-            // Create and dispatch the event
-            const eventType = isStarting ? 'keydown' : 'keyup';
-            const event = new KeyboardEvent(eventType, {
-                code: keyCode,
-                key: keyCode === 'Space' ? ' ' : keyCode === 'ShiftLeft' ? 'Shift' : keyCode.slice(-1).toLowerCase(),
-                bubbles: true
-            });
-            
-            document.dispatchEvent(event);
-        }
-        
-        // Fire weapon by simulating F key press
-        function fireWeapon() {
-            // Key down event
-            const keydownEvent = new KeyboardEvent('keydown', {
-                code: 'KeyF',
-                key: 'f',
-                bubbles: true
-            });
-            document.dispatchEvent(keydownEvent);
-            
-            // Key up event (immediate release)
-            setTimeout(() => {
-                const keyupEvent = new KeyboardEvent('keyup', {
-                    code: 'KeyF',
-                    key: 'f',
-                    bubbles: true
-                });
-                document.dispatchEvent(keyupEvent);
-            }, 50);
-        }
-        
-        // Add error handling for missing modules
-        window.addEventListener('error', function(e) {
-            console.error('Global error:', e.message);
-            document.getElementById('loading').style.display = 'none';
-            const errorDisplay = document.getElementById('error-display');
-            errorDisplay.style.display = 'block';
-            errorDisplay.innerHTML = `
-                <h2>Error Loading Game</h2>
-                <p>${e.message}</p>
-                <p>File: ${e.filename}</p>
-                <p>Line: ${e.lineno}</p>
-                <p>Try refreshing the page or check the console for more details.</p>
-            `;
-            
-            // Hide loading screen after 5 seconds maximum
-            setTimeout(function() {
-                document.getElementById('loading').style.display = 'none';
-            }, 5000);
-            
-            // Create a global bridge function that the module can connect to
-            window.gameControl = {
-                startGame: null,  // Will be filled by the module
-                pauseGame: null,
-                resumeGame: null,
-                restartGame: null
-            };
-            
-            // Make start button work with direct click handler
-            document.getElementById('start-button').addEventListener('click', function() {
-                console.log("Start button clicked via direct event listener");
-                // Try to start the game using the bridge
-                if (window.gameControl && window.gameControl.startGame) {
-                    window.gameControl.startGame();
-                } else {
-                    console.log("Game start function not available yet");
-                    // At least hide the start screen to show something happened
-                    document.getElementById('start-screen').style.display = 'none';
-                }
-            });
-            
-            // Make resume button work with direct click handler
-            document.getElementById('resume-button').addEventListener('click', function() {
-                console.log("Resume button clicked via direct event listener");
+                console.log('Resume button activated');
+                document.getElementById('pause-screen').style.display = 'none';
                 if (window.gameControl && window.gameControl.resumeGame) {
                     window.gameControl.resumeGame();
-                } else {
-                    console.log("Resume function not available yet");
-                    document.getElementById('pause-screen').style.display = 'none';
                 }
-            });
+            }
             
-            // Make restart button work with direct click handler
-            document.getElementById('restart-button').addEventListener('click', function() {
-                console.log("Restart button clicked via direct event listener");
+            function handleGameRestart(e) {
+                e.preventDefault();
+                console.log('Restart button activated');
+                document.getElementById('game-over-screen').style.display = 'none';
                 if (window.gameControl && window.gameControl.restartGame) {
                     window.gameControl.restartGame();
-                } else {
-                    console.log("Restart function not available yet");
-                    document.getElementById('game-over-screen').style.display = 'none';
+                }
+            }
+            
+            // Add both click and touch handlers for all buttons
+            startButton.addEventListener('click', handleGameStart);
+            startButton.addEventListener('touchstart', handleGameStart);
+            
+            resumeButton.addEventListener('click', handleGameResume);
+            resumeButton.addEventListener('touchstart', handleGameResume);
+            
+            restartButton.addEventListener('click', handleGameRestart);
+            restartButton.addEventListener('touchstart', handleGameRestart);
+            
+            // Listen for game start events
+            document.addEventListener('gameStart', function(e) {
+                console.log('Game start event received:', e.detail);
+                if (window.gameControl && window.gameControl.startGame) {
+                    window.gameControl.startGame();
                 }
             });
+            
+            // Handle errors
+            window.addEventListener('error', function(e) {
+                console.error('Game error:', e);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error-display').style.display = 'block';
+                document.getElementById('error-display').innerHTML = `
+                    <h2>Error Loading Game</h2>
+                    <p>${e.message}</p>
+                    <p>File: ${e.filename}</p>
+                    <p>Line: ${e.lineno}</p>
+                    <p>Try refreshing the page or check the console for more details.</p>
+                `;
+            });
         });
-        
-        // Additional mobile optimizations to run when game starts
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set viewport height on mobile devices to account for browser chrome
-            if (isMobile) {
-                // Add touch event listeners for all game buttons
-                const startButton = document.getElementById('start-button');
-                
-                // Remove any existing event listeners
-                startButton.replaceWith(startButton.cloneNode(true));
-                
-                // Get the fresh reference after replacing
-                const newStartButton = document.getElementById('start-button');
-                
-                // Add both touch and click events for maximum compatibility
-                const startGame = function(e) {
-                    e.preventDefault();
-                    console.log("Start button activated");
-                    
-                    // Visual feedback
-                    this.style.transform = 'scale(0.95)';
-                    this.style.opacity = '0.9';
-                    
-                    // Start the game using the bridge
-                    if (window.gameControl && typeof window.gameControl.startGame === 'function') {
-                        window.gameControl.startGame();
-                        console.log("Game start function called");
-                    } else {
-                        console.log("Game control not available");
-                    }
-                    
-                    // Hide start screen manually if needed
-                    document.getElementById('start-screen').style.display = 'none';
-                };
-                
-                // Add both touch and click handlers
-                newStartButton.addEventListener('touchstart', startGame);
-                newStartButton.addEventListener('click', startGame);
-                
-                // Reset visual state on touch end
-                newStartButton.addEventListener('touchend', function(e) {
-                    e.preventDefault();
-                    this.style.transform = '';
-                    this.style.opacity = '';
-                });
-                
-                // Prevent double-firing of events
-                newStartButton.addEventListener('touchend', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-                
-                // Create a global bridge function that the module can connect to
-                window.gameControl = window.gameControl || {
-                    startGame: function() {
-                        console.log("Default start game function called");
-                        document.getElementById('start-screen').style.display = 'none';
-                        // Additional game start logic can be added here
-                    }
-                };
-                
-                // Set the --vh CSS variable to be equal to the viewport height
-                const vh = window.innerHeight * 0.01;
-                document.documentElement.style.setProperty('--vh', `${vh}px`);
-                
-                // Update on resize
-                window.addEventListener('resize', () => {
-                    // Update the --vh variable when the window is resized
-                    const vh = window.innerHeight * 0.01;
-                    document.documentElement.style.setProperty('--vh', `${vh}px`);
-                    
-                    // Re-initialize mobile controls if needed
-                    setupMobileControlPositions();
-                });
-                
-                // Prevent scrolling/bouncing on iOS
-                document.addEventListener('touchmove', function(e) {
-                    if (e.target.id !== 'start-screen' && 
-                        e.target.id !== 'game-over-screen' && 
-                        e.target.id !== 'pause-screen') {
-                        e.preventDefault();
-                    }
-                }, { passive: false });
-                
-                // Initialize mobile control positions
-                setupMobileControlPositions();
-            }
-        });
-        
-        // Function to handle mobile control positioning
-        function setupMobileControlPositions() {
-            if (!isMobile) return;
-            
-            const viewportHeight = window.innerHeight;
-            const viewportWidth = window.innerWidth;
-            
-            // Adjust controls based on device size
-            const joystickContainer = document.getElementById('joystick-container');
-            const fireButton = document.querySelector('.action-button.fire');
-            const upDownButtons = document.getElementById('mobile-up-down');
-            
-            if (joystickContainer && fireButton && upDownButtons) {
-                // Small phones (< 600px height)
-                if (viewportHeight < 600) {
-                    joystickContainer.style.bottom = '20px';
-                    fireButton.style.bottom = '20px';
-                    fireButton.style.width = '100px';
-                    fireButton.style.height = '100px';
-                } 
-                // Medium/large phones
-                else {
-                    joystickContainer.style.bottom = '40px';
-                    fireButton.style.bottom = '40px';
-                }
-                
-                // Always center up/down buttons on screen height
-                upDownButtons.style.top = '50%';
-                upDownButtons.style.transform = 'translateY(-50%)';
-            }
-            
-            // Prevent text selection during gameplay
-            document.body.style.userSelect = 'none';
-            document.body.style.webkitUserSelect = 'none';
-            document.body.style.msUserSelect = 'none';
-        }
     </script>
     <style>
         :root {
@@ -1633,50 +1120,6 @@
                 z-index: 3000; /* Ensure it's on top of everything */
             }
         }
-        
-        .glow-button {
-            background-color: rgba(0, 255, 255, 0.1);
-            border: 2px solid rgba(0, 255, 255, 0.7);
-            color: #00ffff;
-            padding: 15px 30px;
-            font-size: 24px;
-            margin: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            font-family: 'Orbitron', sans-serif;
-            border-radius: 5px;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
-            width: 100%;
-            max-width: 300px;
-        }
-        
-        .glow-button:hover {
-            background-color: rgba(0, 255, 255, 0.2);
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-            transform: scale(1.02);
-        }
-        
-        .glow-button:active {
-            transform: scale(0.98);
-            background-color: rgba(0, 255, 255, 0.3);
-        }
-        
-        @media (max-width: 768px) {
-            .glow-button {
-                font-size: 20px;
-                padding: 12px 24px;
-                margin: 8px;
-            }
-            
-            .button-container {
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                padding: 20px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -1710,9 +1153,13 @@
         <p>COLLECT <span class="data-fragments">COOL BLUE DATA FRAGMENTS</span></p>
         <p>YOU ARE <span class="unchipped">THE UNCHIPPED ONE</span>, THE LAST PERFECT IN HUMANITY</p>
         <div class="button-container">
-            <button id="start-button" class="glow-button">START TO GAME</button>
-            <button id="discover-button" class="glow-button" onclick="window.open('https://unchipped.one/book', '_blank')">DISCOVER THE BOOK</button>
-            <button id="follow-button" class="glow-button" onclick="window.open('https://twitter.com/unchippedone', '_blank')">FOLLOW ON X</button>
+            <button id="start-button" class="pulse-button">START TO GAME</button>
+            <a href="https://www.amazon.com/Machina-Unchipped-Book-Memory-Trilogy/dp/B0DTYG4VC9/ref=sr_1_2?crid=13YIOCOAV" target="_blank">
+                <button class="book-button">DISCOVER THE BOOK</button>
+            </a>
+            <a href="https://x.com/Xmachinamodel" target="_blank">
+                <button class="x-button">FOLLOW ON X</button>
+            </a>
         </div>
     </div>
     <div id="game-over-screen" class="game-screen">
@@ -1843,58 +1290,510 @@
     </div>
     
     <script>
-        // Initialize game control object
-        window.gameControl = {
-            isStarted: false,
-            isPaused: false
-        };
-
-        // Function to start the game
-        function startGame() {
-            if (!window.gameControl.isStarted) {
-                console.log('Starting game...');
-                window.gameControl.isStarted = true;
-                
-                // Hide start screen
-                document.getElementById('start-screen').style.display = 'none';
-                
-                // Dispatch game start event
-                const gameStartEvent = new Event('gameStart');
-                document.dispatchEvent(gameStartEvent);
-                
-                // Show mobile controls if on mobile
-                if (window.innerWidth <= 768) {
+        // Force cache refresh with timestamp
+        console.log("Cache refresh timestamp: ", new Date().toISOString());
+        
+        // Mobile device detection with improved accuracy
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        console.log("Mobile device detected:", isMobile);
+        
+        // Force mobile mode if screen width is small enough
+        if (window.innerWidth <= 768) {
+            document.getElementById('mobile-controls').style.display = 'block';
+            
+            // Hide desktop controls
+            const desktopControls = document.getElementById('left-controls-panel');
+            if (desktopControls) {
+                desktopControls.style.display = 'none';
+            }
+            
+            // Initialize game controls
+            window.gameControl = window.gameControl || {};
+            
+            // Ensure start game function exists
+            if (!window.gameControl.startGame) {
+                window.gameControl.startGame = function() {
+                    console.log("Fallback start game function called");
+                    // Hide the start screen
+                    document.getElementById('start-screen').style.display = 'none';
+                    // Show game canvas
+                    document.getElementById('game').style.display = 'block';
+                    // Show mobile controls
                     document.getElementById('mobile-controls').style.display = 'block';
+                    // Hide loading screen if it's still visible
+                    document.getElementById('loading').style.display = 'none';
+                };
+            }
+            
+            // Force portrait orientation for better mobile experience
+            if (window.screen && window.screen.orientation && typeof window.screen.orientation.lock === 'function') {
+                try {
+                    window.screen.orientation.lock('portrait').catch(error => {
+                        console.log("Orientation lock not supported:", error);
+                    });
+                } catch (error) {
+                    console.log("Orientation API not fully supported:", error);
                 }
             }
         }
-
-        // Add event listeners for the start button
-        document.addEventListener('DOMContentLoaded', function() {
-            const startButton = document.getElementById('start-button');
+        
+        // Set up orientation change detection
+        window.addEventListener('orientationchange', checkOrientation);
+        window.addEventListener('resize', checkOrientation);
+        
+        function checkOrientation() {
+            // Check if device is in landscape mode and has a small height
+            if (window.matchMedia("(max-height: 450px) and (orientation: landscape)").matches && isMobile) {
+                document.getElementById('orientation-warning').style.display = 'flex';
+            } else {
+                document.getElementById('orientation-warning').style.display = 'none';
+            }
+        }
+        
+        // Check orientation immediately
+        checkOrientation();
+        
+        // Touch control variables
+        let joystickActive = false;
+        let joystickOrigin = { x: 0, y: 0 };
+        let currentJoystickPos = { x: 0, y: 0 };
+        let joystickVector = { x: 0, y: 0 };
+        const maxJoystickDistance = 50; // Maximum distance joystick can move
+        
+        // Set up touch controls if mobile
+        if (isMobile) {
+            setupMobileControls();
+        }
+        
+        function setupMobileControls() {
+            const joystickContainer = document.getElementById('joystick-container');
+            const joystick = document.getElementById('joystick');
+            const fireButton = document.querySelector('.action-button.fire');
             
-            // Remove any existing listeners
-            const newStartButton = startButton.cloneNode(true);
-            startButton.parentNode.replaceChild(newStartButton, startButton);
+            // Initialize joystick center position
+            const containerRect = joystickContainer.getBoundingClientRect();
+            joystickOrigin.x = containerRect.left + containerRect.width / 2;
+            joystickOrigin.y = containerRect.top + containerRect.height / 2;
             
-            // Add both touch and click listeners
-            newStartButton.addEventListener('touchstart', function(e) {
+            // Joystick touch start
+            joystickContainer.addEventListener('touchstart', function(e) {
                 e.preventDefault();
-                this.style.transform = 'scale(0.95)';
-                startGame();
+                joystickActive = true;
+                
+                // Update joystick container position if needed
+                const containerRect = joystickContainer.getBoundingClientRect();
+                joystickOrigin.x = containerRect.left + containerRect.width / 2;
+                joystickOrigin.y = containerRect.top + containerRect.height / 2;
+                
+                // Move joystick to touch position (within limits)
+                handleJoystickMove(e);
+            });
+            
+            // Joystick touch move
+            document.addEventListener('touchmove', function(e) {
+                if (joystickActive) {
+                    e.preventDefault();
+                    handleJoystickMove(e);
+                }
             }, { passive: false });
             
-            newStartButton.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                this.style.transform = 'scale(1)';
-            }, { passive: false });
-            
-            newStartButton.addEventListener('click', function(e) {
-                if (!window.gameControl.isStarted) {
-                    startGame();
+            // Joystick touch end
+            document.addEventListener('touchend', function(e) {
+                if (joystickActive) {
+                    joystickActive = false;
+                    
+                    // Return joystick to center
+                    joystick.style.transform = 'translate(-50%, -50%)';
+                    
+                    // Reset joystick vector (stop movement)
+                    joystickVector.x = 0;
+                    joystickVector.y = 0;
+                    
+                    // Trigger joystick release event for the game
+                    triggerJoystickMovement();
                 }
             });
+            
+            // Fire button touch
+            fireButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Trigger fire event for the game
+                fireWeapon();
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(255, 51, 102, 0.4)';
+            });
+            
+            fireButton.addEventListener('touchend', function() {
+                // Reset visual state
+                this.style.backgroundColor = 'rgba(255, 51, 102, 0.2)';
+            });
+            
+            // Add up/down buttons (for 3D movement)
+            const actionButtons = document.getElementById('action-buttons');
+            
+            // Create Up button and Down button - We'll use dedicated buttons now
+            const upButton = document.querySelector('.up-button');
+            const downButton = document.querySelector('.down-button');
+            
+            // Up button events
+            upButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Trigger up movement
+                triggerShipMovement('up', true);
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(0, 255, 255, 0.4)';
+            });
+            
+            upButton.addEventListener('touchend', function() {
+                // Stop up movement
+                triggerShipMovement('up', false);
+                
+                // Reset visual state
+                this.style.backgroundColor = 'rgba(0, 255, 255, 0.2)';
+            });
+            
+            // Down button events
+            downButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Trigger down movement
+                triggerShipMovement('down', true);
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(0, 255, 255, 0.4)';
+            });
+            
+            downButton.addEventListener('touchend', function() {
+                // Stop down movement
+                triggerShipMovement('down', false);
+                
+                // Reset visual state
+                this.style.backgroundColor = 'rgba(0, 255, 255, 0.2)';
+            });
+            
+            // Camera toggle button
+            const toggleCameraButton = document.getElementById('toggle-camera-view');
+            toggleCameraButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Simulate V key press to toggle camera view
+                const keydownEvent = new KeyboardEvent('keydown', {
+                    code: 'KeyV',
+                    key: 'v',
+                    bubbles: true
+                });
+                document.dispatchEvent(keydownEvent);
+                
+                // Key up event
+                setTimeout(() => {
+                    const keyupEvent = new KeyboardEvent('keyup', {
+                        code: 'KeyV',
+                        key: 'v',
+                        bubbles: true
+                    });
+                    document.dispatchEvent(keyupEvent);
+                }, 50);
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                setTimeout(() => {
+                    this.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                }, 200);
+            });
+            
+            // Mobile pause button
+            const pauseButton = document.getElementById('mobile-pause');
+            pauseButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                // Simulate ESC key press to pause game
+                const keydownEvent = new KeyboardEvent('keydown', {
+                    code: 'Escape',
+                    key: 'Escape',
+                    bubbles: true
+                });
+                document.dispatchEvent(keydownEvent);
+                
+                // Key up event
+                setTimeout(() => {
+                    const keyupEvent = new KeyboardEvent('keyup', {
+                        code: 'Escape',
+                        key: 'Escape',
+                        bubbles: true
+                    });
+                    document.dispatchEvent(keyupEvent);
+                }, 50);
+                
+                // Visual feedback
+                this.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                setTimeout(() => {
+                    this.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+                }, 200);
+            });
+        }
+        
+        function handleJoystickMove(e) {
+            const touch = e.touches[0];
+            const joystick = document.getElementById('joystick');
+            
+            // Calculate joystick position relative to center
+            const deltaX = touch.clientX - joystickOrigin.x;
+            const deltaY = touch.clientY - joystickOrigin.y;
+            
+            // Calculate distance from center
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            // Normalize to maximum distance
+            const limitedDistance = Math.min(distance, maxJoystickDistance);
+            const angle = Math.atan2(deltaY, deltaX);
+            
+            // Calculate limited position
+            const limitedX = limitedDistance * Math.cos(angle);
+            const limitedY = limitedDistance * Math.sin(angle);
+            
+            // Adjust joystick position
+            joystick.style.transform = `translate(calc(-50% + ${limitedX}px), calc(-50% + ${limitedY}px))`;
+            
+            // Calculate joystick vector (normalized -1 to 1)
+            joystickVector.x = limitedX / maxJoystickDistance;
+            joystickVector.y = limitedY / maxJoystickDistance;
+            
+            // Trigger joystick movement for the game
+            triggerJoystickMovement();
+        }
+        
+        // Trigger joystick movement event in the game
+        function triggerJoystickMovement() {
+            // Forward/backward movement (y-axis of joystick)
+            if (joystickVector.y < -0.3) {
+                triggerShipMovement('forward', true);
+            } else if (joystickVector.y > 0.3) {
+                triggerShipMovement('backward', true);
+            } else {
+                // Stop forward/backward movement
+                triggerShipMovement('forward', false);
+                triggerShipMovement('backward', false);
+            }
+            
+            // Left/right rotation (x-axis of joystick)
+            if (joystickVector.x < -0.3) {
+                triggerShipMovement('left', true);
+            } else if (joystickVector.x > 0.3) {
+                triggerShipMovement('right', true);
+            } else {
+                // Stop left/right rotation
+                triggerShipMovement('left', false);
+                triggerShipMovement('right', false);
+            }
+        }
+        
+        // Trigger ship movement by simulating keyboard events
+        function triggerShipMovement(direction, isStarting) {
+            let keyCode;
+            
+            switch (direction) {
+                case 'forward':
+                    keyCode = 'KeyW';
+                    break;
+                case 'backward':
+                    keyCode = 'KeyS';
+                    break;
+                case 'left':
+                    keyCode = 'KeyA';
+                    break;
+                case 'right':
+                    keyCode = 'KeyD';
+                    break;
+                case 'up':
+                    keyCode = 'Space';
+                    break;
+                case 'down':
+                    keyCode = 'ShiftLeft';
+                    break;
+                default:
+                    return;
+            }
+            
+            // Create and dispatch the event
+            const eventType = isStarting ? 'keydown' : 'keyup';
+            const event = new KeyboardEvent(eventType, {
+                code: keyCode,
+                key: keyCode === 'Space' ? ' ' : keyCode === 'ShiftLeft' ? 'Shift' : keyCode.slice(-1).toLowerCase(),
+                bubbles: true
+            });
+            
+            document.dispatchEvent(event);
+        }
+        
+        // Fire weapon by simulating F key press
+        function fireWeapon() {
+            // Key down event
+            const keydownEvent = new KeyboardEvent('keydown', {
+                code: 'KeyF',
+                key: 'f',
+                bubbles: true
+            });
+            document.dispatchEvent(keydownEvent);
+            
+            // Key up event (immediate release)
+            setTimeout(() => {
+                const keyupEvent = new KeyboardEvent('keyup', {
+                    code: 'KeyF',
+                    key: 'f',
+                    bubbles: true
+                });
+                document.dispatchEvent(keyupEvent);
+            }, 50);
+        }
+        
+        // Additional mobile optimizations to run when game starts
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set viewport height on mobile devices to account for browser chrome
+            if (isMobile) {
+                // Add touch event listeners for all game buttons
+                const startButton = document.getElementById('start-button');
+                
+                // Remove any existing event listeners
+                startButton.replaceWith(startButton.cloneNode(true));
+                
+                // Get the fresh reference after replacing
+                const newStartButton = document.getElementById('start-button');
+                
+                // Function to start the game
+                const startGame = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("Start button activated");
+                    
+                    // Visual feedback
+                    this.style.transform = 'scale(0.95)';
+                    this.style.opacity = '0.9';
+                    
+                    // Hide start screen immediately
+                    document.getElementById('start-screen').style.display = 'none';
+                    
+                    // Show game canvas
+                    const gameCanvas = document.getElementById('game');
+                    gameCanvas.style.display = 'block';
+                    
+                    // Show mobile controls
+                    document.getElementById('mobile-controls').style.display = 'block';
+                    
+                    // Hide loading screen if it's still visible
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    // Try to start the game through the bridge
+                    if (window.gameControl && typeof window.gameControl.startGame === 'function') {
+                        window.gameControl.startGame();
+                        console.log("Game start function called through bridge");
+                    } else {
+                        console.log("Direct game start initiated");
+                        // Create a custom event to notify the game module
+                        const gameStartEvent = new CustomEvent('gameStart', {
+                            detail: { mobile: true }
+                        });
+                        document.dispatchEvent(gameStartEvent);
+                    }
+                };
+                
+                // Add both touch and click handlers with the same function
+                newStartButton.addEventListener('touchstart', startGame, { passive: false });
+                newStartButton.addEventListener('click', startGame);
+                
+                // Prevent any default touch behaviors
+                newStartButton.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Reset visual state
+                    this.style.transform = '';
+                    this.style.opacity = '';
+                }, { passive: false });
+                
+                // Ensure the game module can connect to our controls
+                window.gameControl = window.gameControl || {};
+                
+                // Override the start game function to ensure it works
+                window.gameControl.startGame = window.gameControl.startGame || function() {
+                    console.log("Default start game function called");
+                    document.getElementById('start-screen').style.display = 'none';
+                    document.getElementById('game').style.display = 'block';
+                    document.getElementById('mobile-controls').style.display = 'block';
+                    
+                    // Create a custom event to notify the game module
+                    const gameStartEvent = new CustomEvent('gameStart', {
+                        detail: { mobile: true }
+                    });
+                    document.dispatchEvent(gameStartEvent);
+                };
+                
+                // Set the --vh CSS variable to be equal to the viewport height
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+                
+                // Update on resize
+                window.addEventListener('resize', () => {
+                    // Update the --vh variable when the window is resized
+                    const vh = window.innerHeight * 0.01;
+                    document.documentElement.style.setProperty('--vh', `${vh}px`);
+                    
+                    // Re-initialize mobile controls if needed
+                    setupMobileControlPositions();
+                });
+                
+                // Prevent scrolling/bouncing on iOS
+                document.addEventListener('touchmove', function(e) {
+                    if (e.target.id !== 'start-screen' && 
+                        e.target.id !== 'game-over-screen' && 
+                        e.target.id !== 'pause-screen') {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                
+                // Initialize mobile control positions
+                setupMobileControlPositions();
+            }
         });
+        
+        // Function to handle mobile control positioning
+        function setupMobileControlPositions() {
+            if (!isMobile) return;
+            
+            const viewportHeight = window.innerHeight;
+            const viewportWidth = window.innerWidth;
+            
+            // Adjust controls based on device size
+            const joystickContainer = document.getElementById('joystick-container');
+            const fireButton = document.querySelector('.action-button.fire');
+            const upDownButtons = document.getElementById('mobile-up-down');
+            
+            if (joystickContainer && fireButton && upDownButtons) {
+                // Small phones (< 600px height)
+                if (viewportHeight < 600) {
+                    joystickContainer.style.bottom = '20px';
+                    fireButton.style.bottom = '20px';
+                    fireButton.style.width = '100px';
+                    fireButton.style.height = '100px';
+                } 
+                // Medium/large phones
+                else {
+                    joystickContainer.style.bottom = '40px';
+                    fireButton.style.bottom = '40px';
+                }
+                
+                // Always center up/down buttons on screen height
+                upDownButtons.style.top = '50%';
+                upDownButtons.style.transform = 'translateY(-50%)';
+            }
+            
+            // Prevent text selection during gameplay
+            document.body.style.userSelect = 'none';
+            document.body.style.webkitUserSelect = 'none';
+            document.body.style.msUserSelect = 'none';
+        }
     </script>
 </body>
 </html>
