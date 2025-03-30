@@ -423,58 +423,86 @@ const DATA_QUOTES = [
 
 // Initialize game screens for mobile
 function initGameScreens() {
-    if (isMobile) {
-        // Start screen
-        const startScreen = document.getElementById('start-screen');
-        if (startScreen) {
-            const startContent = `
-                <h1>X-Machina</h1>
-                <p>Navigate the neon-lit streets of Aurora Prime, collecting data fragments while avoiding hostile drones.</p>
-                <button id="start-button">Start Game</button>
-                <button id="quality-toggle">Graphics: High</button>
+    // Always set up game screens (both mobile and desktop)
+    // Start screen
+    const startScreen = document.getElementById('start-screen');
+    if (startScreen) {
+        // Keep the existing HTML structure but make it more visible on mobile
+        if (isMobile) {
+            // For mobile, use larger buttons with better visibility
+            startScreen.innerHTML = `
+                <h1 style="font-size: 32px; margin-bottom: 20px; text-shadow: 0 0 10px #ff3366;">X-MACHINA</h1>
+                <p style="margin-bottom: 20px; font-size: 16px; max-width: 80%; text-align: center;">Navigate the neon-lit streets of Aurora Prime, collecting data fragments while avoiding hostile drones.</p>
+                <button id="start-button" style="display: block; min-width: 200px; min-height: 50px; font-size: 20px; margin: 10px auto; background-color: #00ffff; color: #000; border: none; border-radius: 5px; padding: 12px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);">START MISSION</button>
+                <button id="options-button" style="display: block; min-width: 200px; min-height: 50px; font-size: 20px; margin: 10px auto; background-color: #00ffff; color: #000; border: none; border-radius: 5px; padding: 12px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);">OPTIONS</button>
+                <button id="controls-button" style="display: block; min-width: 200px; min-height: 50px; font-size: 20px; margin: 10px auto; background-color: #00ffff; color: #000; border: none; border-radius: 5px; padding: 12px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);">CONTROLS</button>
             `;
-            startScreen.innerHTML = startContent;
         }
-
-        // Pause screen
-        const pauseScreen = document.getElementById('pause-screen');
-        if (pauseScreen) {
-            const pauseContent = `
-                <h1>Game Paused</h1>
-                <button id="resume-button">Resume</button>
-                <button id="restart-button">Restart</button>
-            `;
-            pauseScreen.innerHTML = pauseContent;
-        }
-
-        // Game over screen
-        const gameOverScreen = document.getElementById('game-over-screen');
-        if (gameOverScreen) {
-            const gameOverContent = `
-                <h1>Game Over</h1>
-                <p id="final-score">Data fragments collected: 0</p>
-                <button id="restart-button">Try Again</button>
-            `;
-            gameOverScreen.innerHTML = gameOverContent;
-        }
-
-        // Add touch event listeners
-        document.querySelectorAll('.game-screen button').forEach(button => {
-            button.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                button.style.backgroundColor = '#ff3366';
-                button.style.color = '#fff';
-            });
-
-            button.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                button.style.backgroundColor = '#00ffff';
-                button.style.color = '#000';
-                // Trigger click event
-                button.click();
-            });
-        });
     }
+
+    // Pause screen
+    const pauseScreen = document.getElementById('pause-screen');
+    if (pauseScreen && isMobile) {
+        pauseScreen.innerHTML = `
+            <h1 style="font-size: 32px; margin-bottom: 20px; text-shadow: 0 0 10px #ff3366;">PAUSED</h1>
+            <button id="resume-button" style="display: block; min-width: 200px; min-height: 50px; font-size: 20px; margin: 10px auto; background-color: #00ffff; color: #000; border: none; border-radius: 5px; padding: 12px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);">RESUME</button>
+            <button id="controls-pause-button" style="display: block; min-width: 200px; min-height: 50px; font-size: 20px; margin: 10px auto; background-color: #00ffff; color: #000; border: none; border-radius: 5px; padding: 12px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);">CONTROLS</button>
+            <button id="restart-pause-button" style="display: block; min-width: 200px; min-height: 50px; font-size: 20px; margin: 10px auto; background-color: #00ffff; color: #000; border: none; border-radius: 5px; padding: 12px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);">RESTART</button>
+        `;
+    }
+
+    // Game over screen
+    const gameOverScreen = document.getElementById('game-over-screen');
+    if (gameOverScreen && isMobile) {
+        gameOverScreen.innerHTML = `
+            <h1 style="font-size: 32px; margin-bottom: 20px; text-shadow: 0 0 10px #ff3366;">MISSION FAILED</h1>
+            <div id="final-score" style="color: #00ffff; font-size: 20px; margin-bottom: 20px;">Data fragments collected: 0</div>
+            <button id="restart-button" style="display: block; min-width: 200px; min-height: 50px; font-size: 20px; margin: 10px auto; background-color: #00ffff; color: #000; border: none; border-radius: 5px; padding: 12px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);">TRY AGAIN</button>
+            <button id="share-button" style="display: block; min-width: 200px; min-height: 50px; font-size: 20px; margin: 10px auto; background-color: #00ffff; color: #000; border: none; border-radius: 5px; padding: 12px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);">SHARE SCORE</button>
+        `;
+    }
+
+    // Add touch event listeners for all buttons for better mobile interaction
+    document.querySelectorAll('.game-screen button').forEach(button => {
+        // Remove any existing listeners first
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        
+        // Add new listeners
+        newButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            newButton.style.backgroundColor = '#ff3366';
+            newButton.style.color = '#fff';
+            newButton.style.transform = 'scale(0.95)';
+        });
+
+        newButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            newButton.style.backgroundColor = '#00ffff';
+            newButton.style.color = '#000';
+            newButton.style.transform = 'scale(1)';
+            
+            // Simulate click with timeout to ensure visual feedback
+            setTimeout(() => {
+                // Get button id and trigger appropriate action
+                if (newButton.id === 'start-button') {
+                    startGame();
+                } else if (newButton.id === 'resume-button') {
+                    resumeGame();
+                } else if (newButton.id === 'restart-button' || newButton.id === 'restart-pause-button') {
+                    restartGame();
+                } else if (newButton.id === 'controls-button' || newButton.id === 'controls-pause-button') {
+                    toggleControlPanel();
+                } else if (newButton.id === 'share-button') {
+                    shareScore();
+                } else if (newButton.id === 'options-button') {
+                    toggleOptions();
+                }
+            }, 50);
+        });
+    });
+    
+    console.log("Game screens initialized with enhanced mobile support");
 }
 
 // Update the initGame function to call initGameScreens
@@ -2327,7 +2355,7 @@ function setGameState(state) {
     screens.forEach(screenId => {
         const screen = document.getElementById(screenId);
         if (screen) {
-        screen.style.display = 'none';
+            screen.style.display = 'none';
         }
     });
     
@@ -2337,12 +2365,15 @@ function setGameState(state) {
             const startScreen = document.getElementById('start-screen');
             if (startScreen) {
                 startScreen.style.display = 'flex';
-                // Ensure buttons are visible and clickable
-                const buttons = startScreen.getElementsByTagName('button');
-                Array.from(buttons).forEach(button => {
-                    button.style.display = 'block';
-                    button.style.opacity = '1';
-                    button.style.pointerEvents = 'auto';
+                // Force display of buttons (in case CSS has hidden them)
+                const startButtons = startScreen.getElementsByTagName('button');
+                Array.from(startButtons).forEach(button => {
+                    // Preserve any inline styles we set in initGameScreens
+                    if (!button.hasAttribute('style')) {
+                        button.style.display = 'block';
+                        button.style.opacity = '1';
+                        button.style.pointerEvents = 'auto';
+                    }
                 });
             }
             break;
@@ -2359,12 +2390,15 @@ function setGameState(state) {
             const pauseScreen = document.getElementById('pause-screen');
             if (pauseScreen) {
                 pauseScreen.style.display = 'flex';
-                // Ensure buttons are visible and clickable
-                const buttons = pauseScreen.getElementsByTagName('button');
-                Array.from(buttons).forEach(button => {
-                    button.style.display = 'block';
-                    button.style.opacity = '1';
-                    button.style.pointerEvents = 'auto';
+                // Force display of buttons (in case CSS has hidden them)
+                const pauseButtons = pauseScreen.getElementsByTagName('button');
+                Array.from(pauseButtons).forEach(button => {
+                    // Preserve any inline styles we set in initGameScreens
+                    if (!button.hasAttribute('style')) {
+                        button.style.display = 'block';
+                        button.style.opacity = '1';
+                        button.style.pointerEvents = 'auto';
+                    }
                 });
             }
             break;
@@ -2378,12 +2412,15 @@ function setGameState(state) {
                 if (finalScore) {
                     finalScore.textContent = `Data fragments collected: ${score}`;
                 }
-                // Ensure buttons are visible and clickable
-                const buttons = gameOverScreen.getElementsByTagName('button');
-                Array.from(buttons).forEach(button => {
-                    button.style.display = 'block';
-                    button.style.opacity = '1';
-                    button.style.pointerEvents = 'auto';
+                // Force display of buttons (in case CSS has hidden them)
+                const gameOverButtons = gameOverScreen.getElementsByTagName('button');
+                Array.from(gameOverButtons).forEach(button => {
+                    // Preserve any inline styles we set in initGameScreens
+                    if (!button.hasAttribute('style')) {
+                        button.style.display = 'block';
+                        button.style.opacity = '1';
+                        button.style.pointerEvents = 'auto';
+                    }
                 });
             }
             break;
@@ -2393,6 +2430,14 @@ function setGameState(state) {
     const touchController = document.getElementById('touch-controller');
     if (touchController) {
         touchController.style.display = state === 'playing' ? 'block' : 'none';
+    }
+    
+    // Ensure correct touch controls are added for mobile when the game starts
+    if (state === 'playing' && isMobile && !document.body.classList.contains('mobile')) {
+        document.body.classList.add('mobile');
+        if (typeof createMobileControls === 'function') {
+            createMobileControls();
+        }
     }
     
     console.log("Game state updated");
@@ -5188,3 +5233,71 @@ function createVirtualJoystick() {
 }
 
 // ... existing code ...
+
+// Helper functions for buttons 
+function startGame() {
+    console.log("Starting game");
+    setGameState('playing');
+}
+
+function resumeGame() {
+    console.log("Resuming game");
+    setGameState('playing');
+}
+
+function toggleOptions() {
+    console.log("Toggling options");
+    // Options logic will go here
+    
+    // For now just log that options were toggled
+    console.log("Options toggled");
+}
+
+function shareScore() {
+    console.log("Sharing score");
+    // Share logic will go here
+    
+    // For now just log the score
+    console.log("Score to share:", score);
+    
+    // Show a temporary message
+    const gameOverScreen = document.getElementById('game-over-screen');
+    if (gameOverScreen) {
+        const shareMsg = document.createElement('div');
+        shareMsg.textContent = "Score shared!";
+        shareMsg.style.color = "#00ffff";
+        shareMsg.style.marginTop = "10px";
+        shareMsg.style.fontSize = "16px";
+        
+        gameOverScreen.appendChild(shareMsg);
+        
+        // Remove after a few seconds
+        setTimeout(() => {
+            shareMsg.remove();
+        }, 2000);
+    }
+}
+
+// This makes sure we initialize the screens on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup game screens
+    initGameScreens();
+    
+    // Ensure the loading screen is hidden when ready
+    window.addEventListener('load', function() {
+        updateLoadingProgress(100);
+        setTimeout(() => {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                loadingScreen.style.display = 'none';
+            }
+            
+            // Set initial game state if not already set
+            if (gameState !== 'playing') {
+                setGameState('start');
+            }
+        }, 500);
+    });
+    
+    console.log("DOM content loaded, screens initialized");
+});
