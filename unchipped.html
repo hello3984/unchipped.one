@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>X-Machina: The Unchipped One</title>
+    <!-- Add module preload for better performance -->
+    <link rel="modulepreload" href="three/build/three.module.js">
+    <link rel="modulepreload" href="script.js">
+    <style>
+        /* Base styles */
+        :root {
+            --ui-scale: 1.0;
+        }
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* Game UI */
+        #health-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            height: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            overflow: hidden;
+            z-index: 100;
+            transform: scale(var(--ui-scale));
+            transform-origin: top left;
+        }
+        
+        #health-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #00ffff;
+            transition: width 0.3s ease;
+        }
+        
+        #score-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: #00ffff;
+            font-size: 24px;
+            text-shadow: 0 0 10px #00ffff;
+            z-index: 100;
+            transform: scale(var(--ui-scale));
+            transform-origin: top right;
+        }
+
+        /* Mobile controls */
+        #touch-controller {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        .mobile #touch-controller {
+            display: block;
+        }
+
+        #joystick-container {
+            position: absolute;
+            left: 15%;
+            bottom: 80px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+            transform: scale(var(--ui-scale));
+            transform-origin: center;
+        }
+
+        #joystick-handle {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease-out;
+        }
+
+        .touch-button {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background-color: rgba(0, 255, 255, 0.3);
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            transform: translate(-50%, -50%) scale(var(--ui-scale));
+            transform-origin: center;
+            transition: transform 0.1s ease-out, background-color 0.2s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            z-index: 1001;
+        }
+
+        .touch-button:active {
+            background-color: rgba(255, 51, 102, 0.5);
+            transform: translate(-50%, -50%) scale(calc(var(--ui-scale) * 0.95));
+        }
+
+        .touch-button span {
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Game screens */
+        .game-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .game-screen h1 {
+            color: #ff3366;
+            font-size: 48px;
+            text-shadow: 0 0 20px #ff3366;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .game-screen button {
+            background-color: #00ffff;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            min-height: 44px;
+            min-width: 200px;
+            display: block;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .game-screen button:hover {
+            background-color: #ff3366;
+            color: #fff;
+            transform: scale(1.1);
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .game-screen {
+                padding: 10px;
+                justify-content: flex-start;
+                padding-top: 50px;
+            }
+
+            .game-screen h1 {
+                font-size: 24px !important;
+                margin-bottom: 15px !important;
+                padding: 0 10px;
+                text-align: center;
+            }
+
+            .game-screen p {
+                font-size: 14px !important;
+                margin: 8px 0 !important;
+                padding: 0 10px;
+                text-align: center;
+            }
+
+            .game-screen button {
+                font-size: 16px !important;
+                padding: 12px 20px !important;
+                margin: 6px !important;
+                min-width: 160px !important;
+                min-height: 44px !important;
+                display: block !important;
+                opacity: 1 !important;
+                background-color: #00ffff !important;
+                color: #000 !important;
+            }
+
+            #health-container {
+                top: 10px !important;
+                left: 10px !important;
+                transform: scale(0.8) !important;
+            }
+
+            #score-display {
+                top: 10px !important;
+                right: 10px !important;
+                font-size: 16px !important;
+                transform: scale(0.8) !important;
+            }
+
+            .touch-button {
+                width: 60px !important;
+                height: 60px !important;
+                font-size: 14px !important;
+            }
+
+            #joystick-container {
+                left: 10% !important;
+                bottom: 60px !important;
+                width: 100px !important;
+                height: 100px !important;
+            }
+
+            #joystick-handle {
+                width: 40px !important;
+                height: 40px !important;
+            }
+
+            .mobile .game-screen {
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+
+            #quote-display {
+                font-size: 14px !important;
+                padding: 10px !important;
+                max-width: 90% !important;
+            }
+
+            #debug-panel {
+                font-size: 12px !important;
+                max-width: 120px !important;
+                right: 5px !important;
+                top: 40px !important;
+            }
+        }
+
+        /* Landscape orientation */
+        @media (max-height: 500px) {
+            #health-container {
+                top: 10px;
+            }
+
+            #score-display {
+                top: 10px;
+            }
+
+            .touch-button {
+                width: 50px;
+                height: 50px;
+        }
+        
+        #joystick-container {
+            width: 100px;
+            height: 100px;
+                bottom: 60px;
+            }
+
+            #joystick-handle {
+                width: 40px;
+                height: 40px;
+                top: 30px;
+                left: 30px;
+            }
+        }
+
+        /* Orientation warning */
+        #orientation-warning {
+            position: fixed;
+            top: 0;
+            left: 0;
+                width: 100%;
+                height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+                z-index: 2000;
+            color: white;
+                text-align: center;
+            padding: 20px;
+        }
+
+        #orientation-warning img {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 20px;
+            animation: rotate 2s infinite linear;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Mobile-specific UI adjustments */
+        .mobile #game-ui {
+            transform: scale(var(--ui-scale));
+            transform-origin: top left;
+        }
+        
+        .mobile #health-bar {
+            width: 200px;
+        }
+        
+        .mobile #score-display {
+            font-size: 24px;
+        }
+        
+        .mobile #flight-indicators {
+            transform: scale(0.8);
+            transform-origin: top right;
+        }
+        
+        .mobile #debug-panel {
+            transform: scale(0.8);
+            transform-origin: top left;
+        }
+        
+        /* Mobile game screens */
+        .mobile .game-screen {
+            transform: none !important;
+        }
+        
+        .mobile .game-screen h1 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        
+        .mobile .game-screen p {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        
+        .mobile .game-screen button {
+            font-size: 20px;
+            padding: 15px 25px;
+            margin: 8px;
+            min-width: 180px;
+            min-height: 50px;
+            opacity: 1 !important;
+            display: block !important;
+            pointer-events: auto !important;
+        }
+
+        /* Loading screen */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            color: #00ffff;
+            font-size: 24px;
+            text-shadow: 0 0 10px #00ffff;
+        }
+
+        /* Debug panel - hide on mobile */
+        @media (max-width: 768px) {
+            #debug-panel {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading screen -->
+    <div id="loading-screen" class="game-screen" style="display: flex;">
+        <h1>Loading X-Machina...</h1>
+        <div id="loading-progress" style="width: 200px; height: 20px; background: rgba(0,0,0,0.5); border: 2px solid #00ffff; border-radius: 10px; overflow: hidden;">
+            <div id="progress-bar" style="width: 0%; height: 100%; background: #00ffff; transition: width 0.3s ease;"></div>
+    </div>
+    </div>
+    
+    <!-- Game UI elements -->
+    <div id="health-container"><div id="health-bar"></div></div>
+    <div id="score-display">Score: 0</div>
+    <div id="flight-indicators"></div>
+    <div id="quote-container"></div>
+    <div id="debug-panel"></div>
+
+    <!-- Mobile controls -->
+    <div id="touch-controller"></div>
+
+    <!-- Orientation warning -->
+    <div id="orientation-warning">
+        <div style="transform: rotate(90deg); margin-bottom: 20px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#00ffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                <path d="M12 18h.01" />
+            </svg>
+    </div>
+        <h2 style="color: #00ffff; margin-bottom: 10px;">Please Rotate Your Device</h2>
+        <p>For the best experience, play X-MACHINA in landscape mode.</p>
+        </div>
+        
+    <!-- Game screens -->
+    <div id="start-screen" class="game-screen">
+        <h1>X-MACHINA</h1>
+        <button id="start-button">START MISSION</button>
+        <button id="options-button">OPTIONS</button>
+        <button id="controls-button">CONTROLS</button>
+    </div>
+    
+    <div id="pause-screen" class="game-screen">
+        <h1>PAUSED</h1>
+        <button id="resume-button">RESUME</button>
+        <button id="controls-pause-button">CONTROLS</button>
+        <button id="restart-pause-button">RESTART</button>
+    </div>
+    
+    <div id="game-over-screen" class="game-screen">
+        <h1>MISSION FAILED</h1>
+        <div id="final-score" style="color: #00ffff; font-size: 24px; margin-bottom: 30px;">Data fragments collected: 0</div>
+        <button id="restart-button">TRY AGAIN</button>
+        <button id="share-button">SHARE SCORE</button>
+    </div>
+    
+    <!-- Load Three.js and modules -->
+    <script async src="three/build/three.min.js"></script>
+    <script type="module" src="script.js"></script>
+    
+    <!-- Fallback for module loading error -->
+    <script nomodule>
+        document.body.innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;"><div><h2>Browser Not Supported</h2><p>Please use a modern browser that supports JavaScript modules to play X-Machina.</p></div></div>';
+    </script>
+</body>
+</html>

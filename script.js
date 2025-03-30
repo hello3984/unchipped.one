@@ -1,14 +1,296 @@
 // Debug log to verify script loading and changes
-console.log('Script loaded with new changes - ' + new Date().toISOString());
+console.log('Script loaded - ' + new Date().toISOString());
 
-// Immediately log that the script file is loading
-console.log("Script.js loading...");
+// Ensure we have a loading screen
+const loadingScreen = document.getElementById('loading-screen') || createLoadingScreen();
+
+function createLoadingScreen() {
+    const screen = document.createElement('div');
+    screen.id = 'loading-screen';
+    screen.className = 'game-screen';
+    screen.style.display = 'flex';
+    screen.innerHTML = `
+        <h1>Loading X-Machina...</h1>
+        <div id="loading-progress" style="width: 200px; height: 20px; background: rgba(0,0,0,0.5); border: 2px solid #00ffff; border-radius: 10px; overflow: hidden;">
+            <div id="progress-bar" style="width: 0%; height: 100%; background: #00ffff; transition: width 0.3s ease;"></div>
+        </div>
+    `;
+    document.body.appendChild(screen);
+    return screen;
+}
+
+// Update loading progress
+function updateLoadingProgress(progress) {
+    const progressBar = document.getElementById('progress-bar');
+    if (progressBar) {
+        progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+    }
+}
+
+// Device detection and related variables
+let isMobile = false;
+let isTablet = false;
+let isTouchDevice = false;
+let mobileTouchControls = false;
+let mobileQualityLevel = 1;
+let devicePixelRatio = window.devicePixelRatio || 1;
+let deviceOrientation = '';
+
+// Comprehensive device detection function
+function detectMobileDevice() {
+    try {
+        // Store original user agent string for debugging
+        const userAgent = navigator.userAgent || '';
+        console.log("User Agent:", userAgent);
+        
+        // Check if browser supports newer userAgentData API
+        if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
+            console.log("Using modern userAgentData API");
+            isMobile = navigator.userAgentData.mobile;
+        } else {
+            // Fallback to traditional user agent detection with comprehensive patterns
+            const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS|FxiOS|Tablet|tablet|SamsungBrowser/i;
+            isMobile = mobileRegex.test(userAgent);
+            console.log("Using user agent regex detection:", isMobile);
+        }
+        
+        // Detect tablet specifically - common tablets have larger screens
+        const screenSize = Math.min(window.innerWidth, window.innerHeight);
+        const isLargeScreen = screenSize > 600;
+        const tabletRegex = /iPad|Tablet|tablet|Android(?!.*Mobile)/i;
+        isTablet = (isMobile && isLargeScreen) || tabletRegex.test(userAgent);
+        
+        // Multiple methods to detect touch capability for reliability
+        isTouchDevice = false;
+        
+        // Method 1: Touch events
+        if ('ontouchstart' in window) {
+            isTouchDevice = true;
+        }
+        
+        // Method 2: Max touch points
+        if (navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0) {
+            isTouchDevice = true;
+        }
+        
+        // Method 3: Media query for touch
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+            isTouchDevice = true;
+        }
+        
+        // Method 4: Touch event creation test (most reliable but can have false positives)
+        try {
+            document.createEvent('TouchEvent');
+            isTouchDevice = true;
+        } catch (e) {
+            // Touch events not supported
+        }
+        
+        // Determine if we should use mobile controls
+        // Use touch controls on tablets too, but with different layout
+        mobileTouchControls = isMobile || isTouchDevice;
+        
+        // Detect orientation
+        updateDeviceOrientation();
+        
+        // Log detection results
+        console.log("Device detection results:", {
+            isMobile,
+            isTablet,
+            isTouchDevice,
+            mobileTouchControls,
+            devicePixelRatio,
+            screenSize,
+            orientation: deviceOrientation
+        });
+        
+        // Apply appropriate settings based on device type
+        if (mobileTouchControls) {
+            applyMobileSettings();
+        }
+        
+        return mobileTouchControls;
+    } catch (error) {
+        console.error("Error in device detection:", error);
+        // Default to non-mobile in case of errors
+        return false;
+    }
+}
+
+// Update device orientation status
+function updateDeviceOrientation() {
+    if (window.innerHeight > window.innerWidth) {
+        deviceOrientation = 'portrait';
+    } else {
+        deviceOrientation = 'landscape';
+    }
+    
+    return deviceOrientation;
+}
+
+// Apply mobile-specific settings
+function applyMobileSettings() {
+    try {
+        // Add mobile class to body
+        document.body.classList.add('mobile');
+        
+        // Also add tablet class if applicable
+        if (isTablet) {
+            document.body.classList.add('tablet');
+        }
+        
+        // Add appropriate orientation class
+        document.body.classList.remove('portrait', 'landscape');
+        document.body.classList.add(deviceOrientation);
+        
+        // Adjust quality based on device and screen
+        adjustQualityForDevice();
+        
+        // Add viewport meta tag if not present
+        ensureViewportMetaTag();
+        
+        // Set UI scale appropriately
+        setAppropriateUIScale();
+        
+        // Set up orientation change handling
+        setupOrientationHandling();
+        
+        console.log("Mobile settings applied successfully");
+    } catch (error) {
+        console.error("Error applying mobile settings:", error);
+    }
+}
+
+// Adjust quality settings based on device capabilities
+function adjustQualityForDevice() {
+    // Start with saved quality level if available
+    let savedQualityLevel = parseInt(localStorage.getItem('spaceshipQualityLevel') || '1', 10);
+    
+    // For mobile, make initial adjustment based on device pixel ratio and type
+    if (isMobile) {
+        if (devicePixelRatio >= 3) {
+            // High-end devices can handle more
+            mobileQualityLevel = isTablet ? Math.min(savedQualityLevel, 2) : Math.min(savedQualityLevel, 1);
+        } else if (devicePixelRatio >= 2) {
+            // Mid-range devices
+            mobileQualityLevel = Math.min(savedQualityLevel, 1);
+        } else {
+            // Low-end devices
+            mobileQualityLevel = 0;
+        }
+    } else {
+        // Desktop - use saved setting
+        mobileQualityLevel = savedQualityLevel;
+    }
+    
+    // Save the adjusted quality level
+    localStorage.setItem('spaceshipQualityLevel', mobileQualityLevel);
+    console.log("Quality level set to:", mobileQualityLevel);
+}
+
+// Ensure viewport meta tag exists
+function ensureViewportMetaTag() {
+    if (!document.querySelector('meta[name="viewport"]')) {
+        const viewportMeta = document.createElement('meta');
+        viewportMeta.name = 'viewport';
+        viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        document.getElementsByTagName('head')[0].appendChild(viewportMeta);
+        console.log("Added viewport meta tag");
+    }
+}
+
+// Set UI scale based on device type
+function setAppropriateUIScale() {
+    let uiScale = 1.0;
+    
+    if (isTablet) {
+        uiScale = deviceOrientation === 'portrait' ? 1.1 : 1.0;
+    } else if (isMobile) {
+        uiScale = deviceOrientation === 'portrait' ? 1.3 : 1.2;
+    }
+    
+    document.documentElement.style.setProperty('--ui-scale', uiScale);
+    console.log("UI scale set to:", uiScale);
+}
+
+// Set up orientation change handling
+function setupOrientationHandling() {
+    // Remove existing orientation event listener if any
+    window.removeEventListener('resize', handleOrientationChange);
+    
+    // Add orientation change handler
+    window.addEventListener('resize', handleOrientationChange);
+    
+    // Call once to set initial state
+    handleOrientationChange();
+}
+
+// Handle orientation changes
+function handleOrientationChange() {
+    // Update orientation state
+    const newOrientation = updateDeviceOrientation();
+    
+    // Update body classes
+    document.body.classList.remove('portrait', 'landscape');
+    document.body.classList.add(newOrientation);
+    
+    // Update UI scale
+    setAppropriateUIScale();
+    
+    // Show/hide orientation warning
+    updateOrientationWarning();
+    
+    console.log("Orientation changed to:", newOrientation);
+}
+
+// Update orientation warning display
+function updateOrientationWarning() {
+    // For mobile phones (not tablets), show warning in portrait mode
+    const shouldShowWarning = isMobile && !isTablet && deviceOrientation === 'portrait';
+    
+    let warningElement = document.getElementById('orientation-warning');
+    
+    if (shouldShowWarning) {
+        if (!warningElement) {
+            warningElement = document.createElement('div');
+            warningElement.id = 'orientation-warning';
+            warningElement.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+                color: white;
+                text-align: center;
+                padding: 20px;
+            `;
+            warningElement.innerHTML = '<div><img src="images/rotate-device.svg" alt="Rotate device" style="width: 80px; margin-bottom: 20px;"><p>Please rotate your device to landscape mode for the best experience.</p></div>';
+            document.body.appendChild(warningElement);
+        }
+    } else if (warningElement) {
+        warningElement.remove();
+    }
+}
+
+// Variables for touch controls
+let touchController = null;
+let touchJoystick = null;
+let touchButtons = {};
+let joystickActive = false;
+let joystickAngle = 0;
+let joystickDistance = 0;
+let touchStartX = 0;
+let touchStartY = 0;
 
 // Import Three.js and necessary modules
 import * as THREE from 'three';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
-// Import our bridge for connecting to global scope
 import gameBridge from './bridge.js';
 
 // Log that THREE was imported
@@ -59,89 +341,61 @@ try {
     showLoadingError(`Critical error: ${error.message}`);
 }
 
-// Function to show loading error
-function showLoadingError(message) {
-    const errorDisplay = document.createElement('div');
-    errorDisplay.style.position = 'fixed';
-    errorDisplay.style.top = '0';
-    errorDisplay.style.left = '0';
-    errorDisplay.style.width = '100%';
-    errorDisplay.style.height = '100%';
-    errorDisplay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    errorDisplay.style.color = '#ff0000';
-    errorDisplay.style.display = 'flex';
-    errorDisplay.style.flexDirection = 'column';
-    errorDisplay.style.justifyContent = 'center';
-    errorDisplay.style.alignItems = 'center';
-    errorDisplay.style.zIndex = '9999';
-    errorDisplay.style.padding = '20px';
-    errorDisplay.style.fontFamily = 'monospace';
-    
-    errorDisplay.innerHTML = `
-        <h2>Error Loading Game</h2>
-        <p>${message}</p>
-        <p>Please refresh the page or check the console for more details.</p>
-    `;
-    
-    document.body.appendChild(errorDisplay);
-}
-
 // Game variables
 let scene, camera, renderer, ship;
-let composer, bloomPass; // Added for post-processing
+let composer, bloomPass;
 let score = 0;
-let health = 100; // Player's health
+let health = 100;
 let isTopDownView = false;
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, moveUp = false, moveDown = false;
 let velocity = new THREE.Vector3();
 let dataFragments = [];
 let buildings = [];
-let drones = []; // Array to store drone objects
-let projectiles = []; // Array to store active projectiles
-let projectilePool = []; // Pool of reusable projectile objects
-const PROJECTILE_POOL_SIZE = 30; // Maximum number of projectiles in the pool
-const EXPLOSION_POOL_SIZE = 20; // Maximum number of explosion effects in the pool
-const DRONE_POOL_SIZE = 20; // Maximum number of drones in the pool
-let fireParticleTexture = null; // Texture for fire particles
-let gameState = 'start'; // Possible values: 'start', 'playing', 'paused', 'gameover'
-let lastDamageTime = 0; // To control damage frequency
-let invincibleTime = 0; // Time of invincibility after taking damage
-let debugMode = false; // Debug mode toggle
-let stats = null; // Performance stats
-let lastFrameTime = 0; // For FPS calculation
-let deltaTime = 0; // Time between frames
-let audioInitialized = false; // Flag to track if audio is initialized
-let backgroundMusic = null; // Background music
-let sounds = {}; // Object to store sound effects
-let lastFireTime = 0; // Track when the last projectile was fired
-let weaponCooldown = false; // Whether weapon is in cooldown
-let controlPanelVisible = true; // Track if the control panel is visible
-let explosionPool = []; // Pool of reusable explosion objects
-let explosionParticleTexture = null; // Texture for explosion particles
-let dronePool = []; // Pool of reusable drone objects
+let drones = [];
+let projectiles = [];
+let projectilePool = [];
+const PROJECTILE_POOL_SIZE = 30;
+const EXPLOSION_POOL_SIZE = 20;
+const DRONE_POOL_SIZE = 20;
+let fireParticleTexture = null;
+let gameState = 'start';
+let lastDamageTime = 0;
+let invincibleTime = 0;
+let debugMode = false;
+let stats = null;
+let lastFrameTime = 0;
+let deltaTime = 0;
+let audioInitialized = false;
+let backgroundMusic = null;
+let lastFireTime = 0;
+let weaponCooldown = false;
+let controlPanelVisible = true;
+let explosionPool = [];
+let explosionParticleTexture = null;
+let dronePool = [];
 
 // Constants
 const CITY_SIZE = 500;
 const BUILDING_COUNT = 100;
-const DATA_FRAGMENT_COUNT = 20; // Changed from 20 to 30 fragments
-const DRONE_COUNT = 15; // Increased from 10 to 15 - more drones to protect data fragments
+const DATA_FRAGMENT_COUNT = 20;
+const DRONE_COUNT = 15;
 const SHIP_SPEED = 1.5;
 const SHIP_ROTATION_SPEED = 0.05;
 const CAMERA_FOLLOW_SPEED = 0.1;
-const DRONE_PATROL_SPEED = 0.3; // Speed when patrolling
-const DRONE_PURSUIT_SPEED = 0.8; // Speed when pursuing player
-const DRONE_DETECTION_RADIUS = 40; // How far drones can detect the player
-const DRONE_COLLISION_DAMAGE = 20; // Damage done by drone collision
-const BUILDING_COLLISION_DAMAGE = 10; // Damage done by building collision
-const DAMAGE_COOLDOWN = 1000; // Milliseconds between damage instances
-const INVINCIBILITY_TIME = 2000; // Milliseconds of invincibility after damage
-const PROJECTILE_SPEED = 100; // Reduced from 150 to make hits more reliable
-const PROJECTILE_LIFETIME = 3000; // 3 seconds
-const PROJECTILE_MAX_DISTANCE = 200; // Maximum distance projectiles can travel
-const WEAPON_COOLDOWN_TIME = 300; // Reduced for better responsiveness
-const ENERGY_CONDUIT_WIDTH = 30; // Width of the energy conduit
-const PROJECTILE_SPREAD = 0.1; // New constant for projectile spread
-const PROJECTILE_HITBOX_RADIUS = 8.0; // Increased hitbox for better hit detection
+const DRONE_PATROL_SPEED = 0.3;
+const DRONE_PURSUIT_SPEED = 0.8;
+const DRONE_DETECTION_RADIUS = 40;
+const DRONE_COLLISION_DAMAGE = 20;
+const BUILDING_COLLISION_DAMAGE = 10;
+const DAMAGE_COOLDOWN = 1000;
+const INVINCIBILITY_TIME = 2000;
+const PROJECTILE_SPEED = 100;
+const PROJECTILE_LIFETIME = 3000;
+const PROJECTILE_MAX_DISTANCE = 200;
+const WEAPON_COOLDOWN_TIME = 300;
+const ENERGY_CONDUIT_WIDTH = 30;
+const PROJECTILE_SPREAD = 0.1;
+const PROJECTILE_HITBOX_RADIUS = 8.0;
 
 // Quotes displayed when collecting data fragments
 const DATA_QUOTES = [
@@ -167,151 +421,194 @@ const DATA_QUOTES = [
     "Every simulation contains the seeds of its own reality."
 ];
 
-// Initialize the game - renamed from init() to initGame()
-async function initGame() {
-    try {
-        console.log("Initializing game...");
-        
-        // Create scene
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000033); // Dark blue background for night sky
+// Initialize game screens for mobile
+function initGameScreens() {
+    if (isMobile) {
+        // Start screen
+        const startScreen = document.getElementById('start-screen');
+        if (startScreen) {
+            const startContent = `
+                <h1>X-Machina</h1>
+                <p>Navigate the neon-lit streets of Aurora Prime, collecting data fragments while avoiding hostile drones.</p>
+                <button id="start-button">Start Game</button>
+                <button id="quality-toggle">Graphics: High</button>
+            `;
+            startScreen.innerHTML = startContent;
+        }
 
-        // Add stars to the sky
-        createStars();
+        // Pause screen
+        const pauseScreen = document.getElementById('pause-screen');
+        if (pauseScreen) {
+            const pauseContent = `
+                <h1>Game Paused</h1>
+                <button id="resume-button">Resume</button>
+                <button id="restart-button">Restart</button>
+            `;
+            pauseScreen.innerHTML = pauseContent;
+        }
+
+        // Game over screen
+        const gameOverScreen = document.getElementById('game-over-screen');
+        if (gameOverScreen) {
+            const gameOverContent = `
+                <h1>Game Over</h1>
+                <p id="final-score">Data fragments collected: 0</p>
+                <button id="restart-button">Try Again</button>
+            `;
+            gameOverScreen.innerHTML = gameOverContent;
+        }
+
+        // Add touch event listeners
+        document.querySelectorAll('.game-screen button').forEach(button => {
+            button.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                button.style.backgroundColor = '#ff3366';
+                button.style.color = '#fff';
+            });
+
+            button.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                button.style.backgroundColor = '#00ffff';
+                button.style.color = '#000';
+                // Trigger click event
+                button.click();
+            });
+        });
+    }
+}
+
+// Update the initGame function to call initGameScreens
+function initGame() {
+    console.log("Initializing game...");
+    updateLoadingProgress(10);
+    
+    try {
+        // Detect mobile device and set up controls
+        detectMobileDevice();
+        updateLoadingProgress(20);
         
-        // Create camera
+        // Initialize game screens for mobile
+        initGameScreens();
+        updateLoadingProgress(30);
+        
+        // Set up renderer
+        renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 2 : 3));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = !isMobile;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        document.body.appendChild(renderer.domElement);
+        
+        // Create scene and camera
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000011);
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         
-        // Create renderer
-        renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
-        renderer.toneMapping = THREE.ACESFilmicToneMapping; // Better tone mapping
-        renderer.toneMappingExposure = 1.2; // Slightly brighter
+        // Set up lights with mobile optimization
+        setupLights();
         
-        // Set up post-processing with EffectComposer
-        setupPostProcessing();
+        // Create optimized star field
+        createOptimizedStars(scene);
         
-        // Add ambient light
-        const ambientLight = new THREE.AmbientLight(0x333333);
-        scene.add(ambientLight);
+        // Create player ship
+        createPlayerShip();
         
-        // Add directional light (moonlight)
-        const directionalLight = new THREE.DirectionalLight(0x6666ff, 0.5);
-        directionalLight.position.set(0, 50, 0);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 1024;
-        directionalLight.shadow.mapSize.height = 1024;
-        directionalLight.shadow.camera.near = 10;
-        directionalLight.shadow.camera.far = 200;
-        directionalLight.shadow.camera.left = -100;
-        directionalLight.shadow.camera.right = 100;
-        directionalLight.shadow.camera.top = 100;
-        directionalLight.shadow.camera.bottom = -100;
-        scene.add(directionalLight);
-
-        // Create game elements
-        createGround();
-        createCityscape();
-        createTallBuildings(); // Add 10 additional tall buildings
-        
-        // Create the X-MACHINA hub
-        await createXMachinaHub();
-        
-        // Load saved spaceship quality level or default to 1
-        const savedQualityLevel = parseInt(localStorage.getItem('spaceshipQualityLevel') || '1', 10);
-        createPlayerShip(savedQualityLevel);
-        
-        createDataFragments();
-        createDrones();
-        
-        // Add accent lighting to the scene
-        createAccentLights();
-        
-        // Add neon signs
-        createNeonSigns();
-        
-        // Create UI elements - do this first, before setting up event listeners
-        createHealthBar();
-        createDebugPanel();
-        createQuoteDisplay();
-        
-        // Set up event listeners - wrap in try/catch to prevent errors
-        try {
+        // Set up event listeners
             setupEventListeners();
-        } catch (err) {
-            console.error("Error setting up event listeners:", err);
-            
-            // Manual fallback for event listeners
-            console.log("Using fallback method for event listeners");
-            
-            // Manually add event listeners to critical game controls
-            const startButton = document.getElementById('start-button');
-            if (startButton) {
-                startButton.onclick = function() { 
-                    console.log("Start button clicked");
-                    setGameState('playing');
-                };
-            } else {
-                console.warn("Start button not found");
-            }
-            
-            const restartButton = document.getElementById('restart-button');
-            if (restartButton) {
-                restartButton.onclick = function() {
-                    console.log("Restart button clicked");
-                    restartGame();
-                };
-            } else {
-                console.warn("Restart button not found");
-            }
+        
+        // Create mobile controls if needed
+        if (isMobile) {
+            createMobileControls();
+            document.body.classList.add('mobile');
         }
         
-        // Initialize projectile pool
-        initProjectilePool();
-        
-        // Initialize explosion pool
-        initExplosionPool();
-        
-        // Initialize drone pool
-        initDronePool();
-        
-        // Initialize audio
-        initAudio();
-        
-        // Set initial game state
-        setGameState('start');
-        
-        // Start animation loop
-        lastFrameTime = performance.now();
+        // Start game loop
         animate();
         
-        // Hide loading screen
-        const loadingElement = document.getElementById('loading');
-        if (loadingElement) {
-            loadingElement.style.display = 'none';
-        }
-        
-        console.log("Game initialization complete");
+        console.log("Game initialized successfully");
     } catch (error) {
-        console.error("Game initialization failed:", error);
-        const loadingElement = document.getElementById('loading');
-        if (loadingElement) {
-            loadingElement.style.display = 'none';
-        }
-        
-        const errorDisplay = document.getElementById('error-display');
-        if (errorDisplay) {
-            errorDisplay.style.display = 'block';
-            errorDisplay.innerHTML = `
-                <h2>Error Initializing Game</h2>
-                <p>${error.message}</p>
-                <pre>${error.stack}</pre>
-                <p>Try refreshing the page or check the console for more details.</p>
-            `;
-        }
+        console.error("Error initializing game:", error);
+        showLoadingError(error);
     }
+}
+
+// Set up event listeners based on device type
+function setupEventListeners() {
+    // Window resize
+    window.addEventListener('resize', onWindowResize);
+    
+    if (!isMobile) {
+        // Desktop controls
+        document.addEventListener('keydown', event => handleKeyEvent(event, true));
+        document.addEventListener('keyup', event => handleKeyEvent(event, false));
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('click', handleMouseClick);
+    }
+    
+    // Game state buttons
+    document.getElementById('start-button')?.addEventListener('click', startGame);
+    document.getElementById('resume-button')?.addEventListener('click', resumeGame);
+    document.getElementById('restart-button')?.addEventListener('click', restartGame);
+}
+
+// Set up lights with mobile optimization
+function setupLights() {
+    // Ambient light
+    const ambientLight = new THREE.AmbientLight(0x404040, isMobile ? 0.8 : 0.4);
+    scene.add(ambientLight);
+    
+    // Directional light (sun)
+    const sunLight = new THREE.DirectionalLight(0xffffff, isMobile ? 0.8 : 1.0);
+    sunLight.position.set(50, 50, 50);
+    if (!isMobile) {
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 500;
+    }
+    scene.add(sunLight);
+}
+
+// Show loading error
+function showLoadingError(error) {
+    const errorScreen = document.createElement('div');
+    errorScreen.id = 'error-screen';
+    errorScreen.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        text-align: center;
+        padding: 20px;
+        z-index: 9999;
+    `;
+    
+    errorScreen.innerHTML = `
+        <h2>Error Loading Game</h2>
+        <p>Sorry, there was a problem loading the game:</p>
+        <pre style="color: #ff3366; margin: 10px 0;">${error.message}</pre>
+        <button onclick="location.reload()" style="
+            background: #ff3366;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        ">Reload Game</button>
+    `;
+    
+    document.body.appendChild(errorScreen);
 }
 
 // Create stars in the night sky
@@ -2022,79 +2319,83 @@ function updateBackgroundMusic() {
 
 // Set the game state and update the UI
 function setGameState(state) {
+    console.log("Setting game state to:", state);
     gameState = state;
     
-    // Hide all screens
-    document.querySelectorAll('.game-screen').forEach(screen => {
+    // Hide all screens first
+    const screens = ['start-screen', 'pause-screen', 'game-over-screen'];
+    screens.forEach(screenId => {
+        const screen = document.getElementById(screenId);
+        if (screen) {
         screen.style.display = 'none';
+        }
     });
     
-    // Get UI elements
-    const startScreen = document.getElementById('start-screen');
-    const gameOverScreen = document.getElementById('game-over-screen');
-    const pauseScreen = document.getElementById('pause-screen');
-    const leftControlsPanel = document.getElementById('left-controls-panel');
-    const healthBarContainer = document.getElementById('health-bar-container');
-    const scoreDisplay = document.getElementById('score-display');
-    const flightIndicators = document.getElementById('flight-indicators');
-    
-    // Show appropriate screen or UI based on state
+    // Show appropriate screen
     switch (state) {
         case 'start':
-            if (startScreen) startScreen.style.display = 'flex';
-            
-            // Hide game UI elements
-            if (healthBarContainer) healthBarContainer.style.display = 'none';
-            if (scoreDisplay) scoreDisplay.style.display = 'none';
-            if (leftControlsPanel) leftControlsPanel.style.display = 'none';
-            if (flightIndicators) flightIndicators.style.display = 'none';
-            break;
-            
-        case 'paused':
-            if (pauseScreen) pauseScreen.style.display = 'flex';
-            
-            // Show control panel if it was visible before
-            if (leftControlsPanel) {
-                leftControlsPanel.style.display = controlPanelVisible ? 'block' : 'none';
+            const startScreen = document.getElementById('start-screen');
+            if (startScreen) {
+                startScreen.style.display = 'flex';
+                // Ensure buttons are visible and clickable
+                const buttons = startScreen.getElementsByTagName('button');
+                Array.from(buttons).forEach(button => {
+                    button.style.display = 'block';
+                    button.style.opacity = '1';
+                    button.style.pointerEvents = 'auto';
+                });
             }
-            
-            // Hide flight indicators during pause
-            if (flightIndicators) flightIndicators.style.display = 'none';
-            break;
-            
-        case 'gameover':
-            if (gameOverScreen) {
-                // Update final score
-                const finalScoreElement = document.getElementById('final-score');
-                if (finalScoreElement) {
-                    finalScoreElement.textContent = `Data fragments collected: ${score}`;
-                }
-                gameOverScreen.style.display = 'flex';
-            }
-            
-            // Hide game UI elements
-            if (leftControlsPanel) leftControlsPanel.style.display = 'none';
-            if (flightIndicators) flightIndicators.style.display = 'none';
-            
-            // Play game over sound
-            playSound('gameOver');
             break;
             
         case 'playing':
-            // Show game UI elements
-            if (scoreDisplay) scoreDisplay.style.display = 'block';
-            if (healthBarContainer) healthBarContainer.style.display = 'block';
-            if (flightIndicators) flightIndicators.style.display = 'block';
+            // Hide loading screen if still visible
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                loadingScreen.style.display = 'none';
+            }
+            break;
             
-            // Only show control panel if controlPanelVisible is true
-            if (leftControlsPanel) {
-                leftControlsPanel.style.display = controlPanelVisible ? 'block' : 'none';
+        case 'paused':
+            const pauseScreen = document.getElementById('pause-screen');
+            if (pauseScreen) {
+                pauseScreen.style.display = 'flex';
+                // Ensure buttons are visible and clickable
+                const buttons = pauseScreen.getElementsByTagName('button');
+                Array.from(buttons).forEach(button => {
+                    button.style.display = 'block';
+                    button.style.opacity = '1';
+                    button.style.pointerEvents = 'auto';
+                });
+            }
+            break;
+            
+        case 'gameover':
+            const gameOverScreen = document.getElementById('game-over-screen');
+            if (gameOverScreen) {
+                gameOverScreen.style.display = 'flex';
+                // Update final score
+                const finalScore = document.getElementById('final-score');
+                if (finalScore) {
+                    finalScore.textContent = `Data fragments collected: ${score}`;
+                }
+                // Ensure buttons are visible and clickable
+                const buttons = gameOverScreen.getElementsByTagName('button');
+                Array.from(buttons).forEach(button => {
+                    button.style.display = 'block';
+                    button.style.opacity = '1';
+                    button.style.pointerEvents = 'auto';
+                });
             }
             break;
     }
     
-    // Update background music based on new state
-    updateBackgroundMusic();
+    // Update mobile controls visibility
+    const touchController = document.getElementById('touch-controller');
+    if (touchController) {
+        touchController.style.display = state === 'playing' ? 'block' : 'none';
+    }
+    
+    console.log("Game state updated");
 }
 
 // Register the setGameState function with the bridge
@@ -2162,6 +2463,21 @@ function setupEventListeners() {
         handleKeyEvent(event, false);
     });
     
+    // Mouse events for aiming and shooting
+    document.addEventListener('mousemove', function(event) {
+        if (gameState === 'playing') {
+            const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+            updateAiming(mouseX, mouseY);
+        }
+    });
+    
+    document.addEventListener('mousedown', function(event) {
+        if (event.button === 0 && gameState === 'playing' && !weaponCooldown) {
+            fireProjectile();
+        }
+    });
+    
     // Window resize event
     window.addEventListener('resize', onWindowResize);
     
@@ -2170,37 +2486,31 @@ function setupEventListeners() {
         // Start button
         const startButton = document.getElementById('start-button');
         if (startButton) {
-            console.log("Adding event listener to start button");
             startButton.addEventListener('click', function() {
-                console.log("Start button clicked");
+                if (gameState === 'start') {
                 setGameState('playing');
+                }
             });
-        } else {
-            console.warn("Start button not found in DOM");
         }
         
         // Resume button
         const resumeButton = document.getElementById('resume-button');
         if (resumeButton) {
-            console.log("Adding event listener to resume button");
             resumeButton.addEventListener('click', function() {
-                console.log("Resume button clicked");
+                if (gameState === 'paused') {
                 setGameState('playing');
+                }
             });
-        } else {
-            console.warn("Resume button not found in DOM");
         }
         
         // Restart button
         const restartButton = document.getElementById('restart-button');
         if (restartButton) {
-            console.log("Adding event listener to restart button");
             restartButton.addEventListener('click', function() {
-                console.log("Restart button clicked");
+                if (gameState === 'gameover') {
                 restartGame();
+                }
             });
-        } else {
-            console.warn("Restart button not found in DOM");
         }
     } catch (err) {
         console.error("Error setting up UI event listeners:", err);
@@ -2303,22 +2613,15 @@ function toggleCameraView() {
 function updateCameraPosition() {
     if (isTopDownView) {
         // Top-down view
-        camera.position.x = ship.position.x;
-        camera.position.y = ship.position.y + 20;
-        camera.position.z = ship.position.z;
+        camera.position.set(ship.position.x, ship.position.y + 50, ship.position.z);
+        camera.lookAt(ship.position);
     } else {
         // Side view
-        const distance = 15;
-        const height = 5;
-        const angle = ship.rotation.y;
-        
-        camera.position.x = ship.position.x - Math.sin(angle) * distance;
-        camera.position.y = ship.position.y + height;
-        camera.position.z = ship.position.z - Math.cos(angle) * distance;
-    }
-    
-    // Look at ship
+        const cameraOffset = new THREE.Vector3(0, 15, -30);
+        cameraOffset.applyQuaternion(ship.quaternion);
+        camera.position.copy(ship.position).add(cameraOffset);
     camera.lookAt(ship.position);
+    }
 }
 
 // Update ship position and rotation based on controls
@@ -2977,6 +3280,7 @@ function createDrones() {
         
         dronesCreated++;
         
+        
         console.log("Activated patrol drone:", droneData.id, "at position:", droneData.position.x.toFixed(2), droneData.position.y.toFixed(2), droneData.position.z.toFixed(2));
     }
     
@@ -3196,77 +3500,61 @@ function onWindowResize() {
 
 // Animation loop
 function animate() {
-    // Request next frame
     requestAnimationFrame(animate);
     
-    // Calculate delta time for smooth animation
     const currentTime = performance.now();
-    deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
+    const deltaTime = (currentTime - lastFrameTime) / 1000;
     lastFrameTime = currentTime;
     
-    // Skip animation if game is paused
-    if (gameState !== 'playing') {
-        // Render one frame when paused
-        if (composer && composer.passes.length > 0) {
-            composer.render();
-        } else {
-            renderer.render(scene, camera);
-        }
-        return;
-    }
-    
-    // Update player ship movement and camera
-    updateShipMovement();
-        updateCameraPosition();
+    if (gameState === 'playing') {
+        // Update game logic
+        updateGame(deltaTime);
         
-    // Update drones
-        updateDrones();
-        
-    // Check for collisions
-    checkBuildingCollisions();
-    checkDroneCollisions();
-        checkFragmentCollisions();
-        
-    // Update weapon cooldown indicator
-    if (weaponCooldown) {
-        const cooldownBar = document.getElementById('cooldown-bar');
-        const timeSinceFire = Date.now() - lastFireTime;
-        const cooldownPercent = Math.min(100, (timeSinceFire / WEAPON_COOLDOWN_TIME) * 100);
-        
-        if (cooldownBar) {
-            cooldownBar.style.width = cooldownPercent + '%';
+        // Update mobile controls if active
+        if (isMobile && joystickActive) {
+            updateMovementFromJoystick();
         }
         
-        if (timeSinceFire >= WEAPON_COOLDOWN_TIME) {
-            weaponCooldown = false;
-            const cooldownText = document.getElementById('cooldown-text');
-            if (cooldownText) {
-                cooldownText.textContent = 'READY';
-                cooldownText.style.color = '#3f3';
-                cooldownText.style.textShadow = '0 0 5px #0f0';
-            }
-        }
-    }
+        // Update ship position
+        updateShipPosition(deltaTime);
+        
+        // Update camera
+        updateCamera();
         
         // Update projectiles
-        updateProjectiles();
-    
-    // Update debug panel if enabled
+        updateProjectiles(deltaTime);
+        
+        // Update drones
+        updateDrones(deltaTime);
+        
+        // Update particles
+        updateParticleSystems(deltaTime);
+        
+        // Update UI
+        updateUI();
+        
+        // Update debug info if enabled
     if (debugMode) {
         updateDebugPanel();
+        }
     }
     
-    // Update visual effects
-    updateVisualEffects();
-    
-    // Update indicators
-    updateIndicators();
-    
-    // Render scene
-    if (composer && composer.passes.length > 0) {
-            composer.render();
-        } else {
+    // Render scene with mobile optimizations
+    if (isMobile) {
+        // Simplified rendering for mobile
         renderer.render(scene, camera);
+    } else {
+        // Full post-processing for desktop
+        composer.render();
+    }
+    
+    // Update FPS counter
+    frames++;
+    if (currentTime >= nextFPSUpdate) {
+        fps = Math.round((frames * 1000) / (currentTime - lastFPSUpdate));
+        lastFPSUpdate = currentTime;
+        nextFPSUpdate = currentTime + 1000;
+        frames = 0;
     }
 }
 
@@ -3347,78 +3635,23 @@ function updateVisualEffects() {
 
 // Update height and speed indicators
 function updateIndicators() {
-    if (gameState !== 'playing') return;
-    
-    // Calculate values
-    // Convert to feet (1 meter = 3.28084 feet)
-    const heightInMeters = Math.round(ship.position.y);
-    const heightInFeet = Math.round(heightInMeters * 3.28084);
-    
-    // Calculate speed from velocity (arbitrary scale)
-    const speed = Math.sqrt(
-        velocity.x * velocity.x + 
-        velocity.y * velocity.y + 
-        velocity.z * velocity.z
-    );
-    // Convert to km/h (arbitrary scale factor)
-    const speedInKmh = Math.round(speed * 30);
-    // Convert to mph (1 km/h = 0.621371 mph)
-    const speedInMph = Math.round(speedInKmh * 0.621371);
-    
-    // Update original display in left panel
-    const heightElement = document.getElementById('height-indicator');
-    if (heightElement) {
-        heightElement.textContent = `${heightInMeters} m`;
+    // Update health bar
+    const healthBar = document.getElementById('health-bar');
+    if (healthBar) {
+        healthBar.style.width = `${health}%`;
+        healthBar.style.backgroundColor = health > 50 ? '#00ff00' : health > 25 ? '#ffff00' : '#ff0000';
     }
     
-    const speedElement = document.getElementById('speed-indicator');
-    if (speedElement) {
-        speedElement.textContent = `${speedInKmh} km/h`;
+    // Update score display
+    const scoreDisplay = document.getElementById('score-display');
+    if (scoreDisplay) {
+        scoreDisplay.textContent = `Score: ${score}`;
     }
     
-    // Update advanced flight indicator display
-    const altitudeIndicator = document.getElementById('altitude-indicator');
-    if (altitudeIndicator) {
-        altitudeIndicator.innerHTML = `${heightInFeet}<span class="units">ft</span>`;
-    }
-    
-    const speedIndicatorAdvanced = document.getElementById('speed-indicator-advanced');
-    if (speedIndicatorAdvanced) {
-        speedIndicatorAdvanced.innerHTML = `${speedInMph}<span class="units">mph</span>`;
-    }
-    
-    // Update altitude bar (max height is 120 units = 393.7 feet)
-    const altitudeBar = document.getElementById('altitude-bar');
-    if (altitudeBar) {
-        const maxAltitude = 400; // Max altitude in feet
-        const altitudePercentage = Math.min(100, (heightInFeet / maxAltitude) * 100);
-        altitudeBar.style.width = `${altitudePercentage}%`;
-        
-        // Change color based on altitude
-        if (heightInFeet < 50) {
-            altitudeBar.style.background = 'linear-gradient(to right, #ff3300, #ff6600)'; // Low altitude - orange/red
-        } else if (heightInFeet > 300) {
-            altitudeBar.style.background = 'linear-gradient(to right, #00ff99, #00ffff)'; // High altitude - cyan/green
-        } else {
-            altitudeBar.style.background = 'linear-gradient(to right, #0066ff, #00ffff)'; // Medium altitude - blue/cyan
-        }
-    }
-    
-    // Update speed bar (max speed arbitrarily set to 150 mph)
-    const speedBar = document.getElementById('speed-bar');
-    if (speedBar) {
-        const maxSpeed = 150; // Max speed in mph
-        const speedPercentage = Math.min(100, (speedInMph / maxSpeed) * 100);
-        speedBar.style.width = `${speedPercentage}%`;
-        
-        // Change color based on speed
-        if (speedInMph > 120) {
-            speedBar.style.background = 'linear-gradient(to right, #ff3300, #ff6600)'; // High speed - orange/red
-        } else if (speedInMph > 60) {
-            speedBar.style.background = 'linear-gradient(to right, #ffcc00, #ffff00)'; // Medium speed - yellow
-        } else {
-            speedBar.style.background = 'linear-gradient(to right, #0066ff, #00ffff)'; // Low speed - blue/cyan
-        }
+    // Update weapon cooldown indicator
+    const cooldownIndicator = document.getElementById('weapon-cooldown');
+    if (cooldownIndicator) {
+        cooldownIndicator.style.display = weaponCooldown ? 'block' : 'none';
     }
 }
 
@@ -4255,73 +4488,10 @@ function updateQualityFromSaved() {
 
 // Toggle control panel visibility
 function toggleControlPanel() {
-    // Only toggle if in playing or paused state
-    if (gameState === 'playing' || gameState === 'paused') {
-        controlPanelVisible = !controlPanelVisible;
-        
-        // Get the control panel element
-        const controlPanel = document.getElementById('left-controls-panel');
-        
-        // Update visibility
+    const controlPanel = document.getElementById('control-panel');
         if (controlPanel) {
+        controlPanelVisible = !controlPanelVisible;
             controlPanel.style.display = controlPanelVisible ? 'block' : 'none';
-            
-            // Add a subtle animation effect when showing/hiding
-            if (controlPanelVisible) {
-                controlPanel.style.opacity = '0';
-                controlPanel.style.transform = 'translateX(-20px)';
-                controlPanel.style.transition = 'opacity 0.3s ease-in-out, transform 0.3s ease-in-out';
-                
-                // Trigger reflow to ensure transition applies
-                void controlPanel.offsetWidth;
-                
-                controlPanel.style.opacity = '1';
-                controlPanel.style.transform = 'translateX(0)';
-            }
-            
-            // Play a UI sound for feedback
-            playSound('ui');
-            
-            // Show temporary notification
-            const notification = document.createElement('div');
-            notification.textContent = controlPanelVisible ? 
-                'Controls Panel: VISIBLE [Press C to hide]' : 
-                'Controls Panel: HIDDEN [Press C to show]';
-            notification.style.position = 'fixed';
-            notification.style.top = '120px';
-            notification.style.left = '20px';
-            notification.style.padding = '10px';
-            notification.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            notification.style.color = '#0ff';
-            notification.style.border = '1px solid #0ff';
-            notification.style.boxShadow = '0 0 10px #0ff';
-            notification.style.fontFamily = 'monospace';
-            notification.style.fontSize = '14px';
-            notification.style.zIndex = '9999';
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateY(-10px)';
-            notification.style.transition = 'opacity 0.3s ease-in-out, transform 0.3s ease-in-out';
-            
-            document.body.appendChild(notification);
-            
-            // Trigger reflow to ensure transition applies
-            void notification.offsetWidth;
-            
-            notification.style.opacity = '1';
-            notification.style.transform = 'translateY(0)';
-            
-            // Remove notification after 2 seconds
-            setTimeout(() => {
-                notification.style.opacity = '0';
-                notification.style.transform = 'translateY(-10px)';
-                
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        document.body.removeChild(notification);
-                    }
-                }, 300);
-            }, 2000);
-        }
     }
 }
 
@@ -4874,3 +5044,147 @@ function createTallBuildings() {
     
     console.log("Added tall buildings. Total building count:", buildings.length);
 }
+
+// Update ship movement based on keyboard input
+function updateShipMovement() {
+    // Calculate movement direction
+    const moveDirection = new THREE.Vector3();
+    
+    if (moveForward) moveDirection.z -= 1;
+    if (moveBackward) moveDirection.z += 1;
+    if (moveLeft) moveDirection.x -= 1;
+    if (moveRight) moveDirection.x += 1;
+    if (moveUp) moveDirection.y += 1;
+    if (moveDown) moveDirection.y -= 1;
+    
+    moveDirection.normalize();
+    
+    // Apply ship speed
+    velocity.x = moveDirection.x * SHIP_SPEED;
+    velocity.y = moveDirection.y * SHIP_SPEED;
+    velocity.z = moveDirection.z * SHIP_SPEED;
+    
+    // Update ship position
+    ship.position.add(velocity);
+    
+    // Keep ship within bounds
+    ship.position.x = Math.max(-CITY_SIZE, Math.min(CITY_SIZE, ship.position.x));
+    ship.position.y = Math.max(5, Math.min(100, ship.position.y));
+    ship.position.z = Math.max(-CITY_SIZE, Math.min(CITY_SIZE, ship.position.z));
+    
+    // Update camera
+    updateCameraPosition();
+}
+
+// Create mobile UI and controls
+function createMobileControls() {
+    console.log("Creating mobile controls");
+    
+    // Get or create touch controller
+    let touchController = document.getElementById('touch-controller');
+    if (!touchController) {
+        touchController = document.createElement('div');
+        touchController.id = 'touch-controller';
+        document.body.appendChild(touchController);
+    }
+    
+    // Clear existing controls
+    touchController.innerHTML = '';
+    
+    // Create virtual joystick
+    createVirtualJoystick();
+    
+    // Create action buttons
+    createActionButtons();
+    
+    // Show touch controller
+    touchController.style.display = 'block';
+    
+    // Add mobile class to body if not already added
+    document.body.classList.add('mobile');
+    
+    console.log("Mobile controls created");
+}
+
+function createActionButtons() {
+    console.log("Creating action buttons");
+    const touchController = document.getElementById('touch-controller');
+    
+    // Define button positions (in viewport percentages)
+    const buttonLayout = [
+        { id: 'fire', text: 'FIRE', right: 15, bottom: 30 },
+        { id: 'camera', text: 'CAM', right: 15, bottom: 60 },
+        { id: 'boost', text: 'BOOST', right: 25, bottom: 45 }
+    ];
+    
+    // Create each button
+    buttonLayout.forEach(btn => {
+        const button = document.createElement('div');
+        button.id = `${btn.id}-button`;
+        button.className = 'touch-button';
+        button.style.right = `${btn.right}%`;
+        button.style.bottom = `${btn.bottom}%`;
+        button.innerHTML = `<span>${btn.text}</span>`;
+        
+        // Add touch event listeners
+        button.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleButtonPress(btn.id, true);
+            button.style.backgroundColor = 'rgba(255, 51, 102, 0.5)';
+        }, { passive: false });
+        
+        button.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleButtonPress(btn.id, false);
+            button.style.backgroundColor = 'rgba(0, 255, 255, 0.3)';
+        }, { passive: false });
+        
+        touchController.appendChild(button);
+    });
+    
+    console.log("Action buttons created");
+}
+
+function handleButtonPress(buttonId, isPressed) {
+    switch (buttonId) {
+        case 'fire':
+            if (isPressed && !weaponCooldown) {
+                fireProjectile();
+            }
+            break;
+        case 'camera':
+            if (isPressed) {
+                toggleCameraView();
+            }
+            break;
+        case 'boost':
+            // Implement boost functionality
+            break;
+    }
+}
+
+function createVirtualJoystick() {
+    console.log("Creating virtual joystick");
+    const touchController = document.getElementById('touch-controller');
+    
+    // Create joystick container
+    const joystickContainer = document.createElement('div');
+    joystickContainer.id = 'joystick-container';
+    
+    // Create joystick handle
+    const joystickHandle = document.createElement('div');
+    joystickHandle.id = 'joystick-handle';
+    
+    // Add joystick elements to DOM
+    joystickContainer.appendChild(joystickHandle);
+    touchController.appendChild(joystickContainer);
+    
+    // Add touch event listeners
+    joystickContainer.addEventListener('touchstart', handleJoystickStart, { passive: false });
+    joystickContainer.addEventListener('touchmove', handleJoystickMove, { passive: false });
+    joystickContainer.addEventListener('touchend', handleJoystickEnd, { passive: false });
+    
+    console.log("Virtual joystick created");
+}
+
+// ... existing code ...
