@@ -174,7 +174,7 @@ async function initGame() {
         
         // Create scene
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000033); // Dark blue background for night sky
+        scene.background = new THREE.Color(0x000033);
 
         // Add stars to the sky
         createStars();
@@ -237,35 +237,18 @@ async function initGame() {
         createDebugPanel();
         createQuoteDisplay();
         
-        // Set up event listeners - wrap in try/catch to prevent errors
-        try {
-            setupEventListeners();
-        } catch (err) {
-            console.error("Error setting up event listeners:", err);
-            
-            // Manual fallback for event listeners
-            console.log("Using fallback method for event listeners");
-            
-            // Manually add event listeners to critical game controls
-            const startButton = document.getElementById('start-button');
-            if (startButton) {
-                startButton.onclick = function() { 
-                    console.log("Start button clicked");
-                    setGameState('playing');
-                };
-            } else {
-                console.warn("Start button not found");
+        // Set up event listeners ONCE
+        if (typeof setupEventListeners === 'function') {
+            try {
+                setupEventListeners();
+            } catch (err) {
+                console.error("Error in primary event listener setup:", err);
+                // Don't try fallback - let the error propagate
+                throw err;
             }
-            
-            const restartButton = document.getElementById('restart-button');
-            if (restartButton) {
-                restartButton.onclick = function() {
-                    console.log("Restart button clicked");
-                    restartGame();
-                };
-            } else {
-                console.warn("Restart button not found");
-            }
+        } else {
+            console.error("setupEventListeners function not found");
+            throw new Error("Critical game function missing");
         }
         
         // Initialize projectile pool
@@ -296,21 +279,7 @@ async function initGame() {
         console.log("Game initialization complete");
     } catch (error) {
         console.error("Game initialization failed:", error);
-        const loadingElement = document.getElementById('loading');
-        if (loadingElement) {
-            loadingElement.style.display = 'none';
-        }
-        
-        const errorDisplay = document.getElementById('error-display');
-        if (errorDisplay) {
-            errorDisplay.style.display = 'block';
-            errorDisplay.innerHTML = `
-                <h2>Error Initializing Game</h2>
-                <p>${error.message}</p>
-                <pre>${error.stack}</pre>
-                <p>Try refreshing the page or check the console for more details.</p>
-            `;
-        }
+        showLoadingError(error.message);
     }
 }
 
@@ -2153,7 +2122,42 @@ gameBridge.registerRestartGame(restartGame);
 function setupEventListeners() {
     console.log("Setting up event listeners");
     
-    // Keyboard events for player movement
+    // Remove any existing listeners first
+    const startButton = document.getElementById('start-button');
+    const resumeButton = document.getElementById('resume-button');
+    const restartButton = document.getElementById('restart-button');
+    
+    if (startButton) {
+        const newStartButton = startButton.cloneNode(true);
+        startButton.parentNode.replaceChild(newStartButton, startButton);
+        newStartButton.addEventListener('click', function() {
+            if (gameState === 'start') {
+                setGameState('playing');
+            }
+        });
+    }
+    
+    if (resumeButton) {
+        const newResumeButton = resumeButton.cloneNode(true);
+        resumeButton.parentNode.replaceChild(newResumeButton, resumeButton);
+        newResumeButton.addEventListener('click', function() {
+            if (gameState === 'paused') {
+                setGameState('playing');
+            }
+        });
+    }
+    
+    if (restartButton) {
+        const newRestartButton = restartButton.cloneNode(true);
+        restartButton.parentNode.replaceChild(newRestartButton, restartButton);
+        newRestartButton.addEventListener('click', function() {
+            if (gameState === 'gameover') {
+                restartGame();
+            }
+        });
+    }
+    
+    // Keyboard events
     document.addEventListener('keydown', function(event) {
         handleKeyEvent(event, true);
     });
@@ -2164,41 +2168,6 @@ function setupEventListeners() {
     
     // Window resize event
     window.addEventListener('resize', onWindowResize);
-    
-    // Game screen event listeners
-    try {
-        // Start button
-        const startButton = document.getElementById('start-button');
-        if (startButton) {
-            startButton.addEventListener('click', function() {
-                if (gameState === 'start') {
-                    setGameState('playing');
-                }
-            });
-        }
-        
-        // Resume button
-        const resumeButton = document.getElementById('resume-button');
-        if (resumeButton) {
-            resumeButton.addEventListener('click', function() {
-                if (gameState === 'paused') {
-                    setGameState('playing');
-                }
-            });
-        }
-        
-        // Restart button
-        const restartButton = document.getElementById('restart-button');
-        if (restartButton) {
-            restartButton.addEventListener('click', function() {
-                if (gameState === 'gameover') {
-                    restartGame();
-                }
-            });
-        }
-    } catch (err) {
-        console.error("Error setting up UI event listeners:", err);
-    }
 }
 
 // Helper function to handle keyboard events
