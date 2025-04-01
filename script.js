@@ -237,20 +237,6 @@ async function initGame() {
         createDebugPanel();
         createQuoteDisplay();
         
-        // Set up event listeners ONCE
-        if (typeof setupEventListeners === 'function') {
-            try {
-                setupEventListeners();
-            } catch (err) {
-                console.error("Error in primary event listener setup:", err);
-                // Don't try fallback - let the error propagate
-                throw err;
-            }
-        } else {
-            console.error("setupEventListeners function not found");
-            throw new Error("Critical game function missing");
-        }
-        
         // Initialize projectile pool
         initProjectilePool();
         
@@ -262,6 +248,9 @@ async function initGame() {
         
         // Initialize audio
         initAudio();
+        
+        // Set up event listeners
+        setupEventListeners();
         
         // Set initial game state
         setGameState('start');

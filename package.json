@@ -1,4 +1,29 @@
 {
+  "name": "x-machina-game",
+  "version": "1.0.0",
+  "description": "X-Machina: The Unchipped One - An immersive browser game set in the world of the X-MACHINA book series",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server",
+    "dev": "http-server -c-1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/x-machina-game.git"
+  },
+  "keywords": [
+    "game",
+    "x-machina",
+    "threejs",
+    "browser-game",
+    "cyberpunk"
+  ],
+  "author": "F. Bayraktar",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/x-machina-game/issues"
+  },
+  "homepage": "https://unchipped.one",
   "dependencies": {
     "cannon-es": "^0.20.0",
     "express": "^4.21.2",
