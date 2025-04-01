@@ -2170,37 +2170,31 @@ function setupEventListeners() {
         // Start button
         const startButton = document.getElementById('start-button');
         if (startButton) {
-            console.log("Adding event listener to start button");
             startButton.addEventListener('click', function() {
-                console.log("Start button clicked");
-                setGameState('playing');
+                if (gameState === 'start') {
+                    setGameState('playing');
+                }
             });
-        } else {
-            console.warn("Start button not found in DOM");
         }
         
         // Resume button
         const resumeButton = document.getElementById('resume-button');
         if (resumeButton) {
-            console.log("Adding event listener to resume button");
             resumeButton.addEventListener('click', function() {
-                console.log("Resume button clicked");
-                setGameState('playing');
+                if (gameState === 'paused') {
+                    setGameState('playing');
+                }
             });
-        } else {
-            console.warn("Resume button not found in DOM");
         }
         
         // Restart button
         const restartButton = document.getElementById('restart-button');
         if (restartButton) {
-            console.log("Adding event listener to restart button");
             restartButton.addEventListener('click', function() {
-                console.log("Restart button clicked");
-                restartGame();
+                if (gameState === 'gameover') {
+                    restartGame();
+                }
             });
-        } else {
-            console.warn("Restart button not found in DOM");
         }
     } catch (err) {
         console.error("Error setting up UI event listeners:", err);
