@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error Handler Test Page</title>
+    <style>
+        body {
+            background-color: #1a1a2e;
+            color: #00ffff;
+            font-family: 'Courier New', monospace;
+            margin: 20px;
+            padding: 20px;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #00ffff;
+        }
+        h1 {
+            color: #ff3366;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .button-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #00ffff;
+            color: #1a1a2e;
+            border: none;
+            padding: 15px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background-color: #ff3366;
+            color: white;
+            transform: scale(1.05);
+        }
+        #test-results {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            min-height: 100px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header p {
+            color: #888;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="header">
+            <h1>Error Handler Test Page</h1>
+            <p>This is a separate test environment for the error handling system</p>
+        </div>
+        
+        <div class="button-container">
+            <button onclick="testInitializationError()">Test Initialization Error</button>
+            <button onclick="testResourceLoadingError()">Test Resource Loading Error</button>
+            <button onclick="testRuntimeError()">Test Runtime Error</button>
+            <button onclick="testNetworkError()">Test Network Error</button>
+        </div>
+
+        <div id="test-results">
+            <p style="color: #888;">Error results will appear here and in the top-right corner...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ErrorHandler, ErrorType } from './error.js';
+
+        // Make test functions available globally
+        window.testInitializationError = () => {
+            try {
+                ErrorHandler.throw(
+                    ErrorType.INITIALIZATION,
+                    'Failed to initialize test component',
+                    { component: 'TestModule' }
+                );
+            } catch (error) {
+                ErrorHandler.handle(error);
+            }
+        };
+
+        window.testResourceLoadingError = () => {
+            try {
+                ErrorHandler.throw(
+                    ErrorType.RESOURCE_LOADING,
+                    'Failed to load test resource',
+                    { resource: 'test-texture.png' }
+                );
+            } catch (error) {
+                ErrorHandler.handle(error);
+            }
+        };
+
+        window.testRuntimeError = () => {
+            try {
+                ErrorHandler.throw(
+                    ErrorType.RUNTIME,
+                    'A runtime error occurred during test',
+                    { operation: 'test-operation' }
+                );
+            } catch (error) {
+                ErrorHandler.handle(error);
+            }
+        };
+
+        window.testNetworkError = () => {
+            try {
+                ErrorHandler.throw(
+                    ErrorType.NETWORK,
+                    'Network request failed during test',
+                    { url: 'https://test-api.example.com' }
+                );
+            } catch (error) {
+                ErrorHandler.handle(error);
+            }
+        };
+
+        // Log test results
+        const originalConsoleError = console.error;
+        console.error = (...args) => {
+            const resultDiv = document.getElementById('test-results');
+            resultDiv.innerHTML = `<pre>${JSON.stringify(args, null, 2)}</pre>`;
+            originalConsoleError.apply(console, args);
+        };
+    </script>
+</body>
+</html> 

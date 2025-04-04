@@ -1,11 +1,13 @@
 {
   "name": "x-machina-game",
   "version": "1.0.0",
+  "type": "module",
   "description": "X-Machina: The Unchipped One - An immersive browser game set in the world of the X-MACHINA book series",
   "main": "index.html",
   "scripts": {
     "start": "http-server",
-    "dev": "http-server -c-1"
+    "dev": "http-server -c-1",
+    "test": "node src/test-server.js"
   },
   "repository": {
     "type": "git",
