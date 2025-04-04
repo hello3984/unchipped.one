@@ -5,31 +5,53 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '16'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Copy files to deploy directory
+      - name: Prepare deployment directory
         run: |
           mkdir -p deploy
           cp index.html deploy/
           cp script.js deploy/
-          cp -r assets deploy/
-          cp -r js deploy/
+          cp bridge.js deploy/
+          cp CNAME deploy/
+          cp -r assets deploy/ || true
+          cp -r js deploy/ || true
+          cp -r images deploy/ || true
+          
+          # Create deploy/package.json with only necessary dependencies
+          echo '{
+            "name": "x-machina-game",
+            "version": "1.0.0",
+            "dependencies": {
+              "three": "^0.157.0"
+            }
+          }' > deploy/package.json
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./deploy
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Deploy to GitHub Pages'
           cname: unchipped.one 
