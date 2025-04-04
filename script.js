@@ -1,6 +1,136 @@
 // Debug log to verify script loading and changes
 console.log('Script loaded with new changes - ' + new Date().toISOString());
 
+// Module loading state management
+const ModuleLoader = {
+    modules: {},
+    loaded: false,
+    error: null,
+    
+    async loadModules() {
+        try {
+            // Core THREE.js
+            const THREE = await import('three');
+            this.modules.THREE = THREE;
+            
+            // Essential modules
+            const [
+                { FontLoader },
+                { TextGeometry }
+            ] = await Promise.all([
+                import('three/addons/loaders/FontLoader.js'),
+                import('three/addons/geometries/TextGeometry.js')
+            ]);
+            
+            this.modules.FontLoader = FontLoader;
+            this.modules.TextGeometry = TextGeometry;
+            
+            // Post-processing modules (with fallback)
+            try {
+                const [
+                    { EffectComposer },
+                    { RenderPass },
+                    { UnrealBloomPass }
+                ] = await Promise.all([
+                    import('three/addons/postprocessing/EffectComposer.js'),
+                    import('three/addons/postprocessing/RenderPass.js'),
+                    import('three/addons/postprocessing/UnrealBloomPass.js')
+                ]);
+                
+                this.modules.EffectComposer = EffectComposer;
+                this.modules.RenderPass = RenderPass;
+                this.modules.UnrealBloomPass = UnrealBloomPass;
+            } catch (postProcessError) {
+                console.warn("Post-processing modules failed to load, falling back to basic rendering:", postProcessError);
+                this.modules.postProcessingAvailable = false;
+            }
+            
+            // Bridge module
+            try {
+                const bridge = await import('./bridge.js');
+                this.modules.gameBridge = bridge.default;
+            } catch (bridgeError) {
+                console.warn("Bridge module failed to load, some features may be limited:", bridgeError);
+            }
+            
+            this.loaded = true;
+            return true;
+        } catch (error) {
+            this.error = error;
+            console.error("Critical module loading error:", error);
+            
+            // Try fallback to global scope
+            if (window.THREE) {
+                console.log("Attempting fallback to global THREE.js...");
+                this.modules.THREE = window.THREE;
+                this.modules.FontLoader = window.THREE.FontLoader;
+                this.modules.TextGeometry = window.THREE.TextGeometry;
+                
+                if (window.THREE.EffectComposer) {
+                    this.modules.EffectComposer = window.THREE.EffectComposer;
+                    this.modules.RenderPass = window.THREE.RenderPass;
+                    this.modules.UnrealBloomPass = window.THREE.UnrealBloomPass;
+                }
+                
+                this.loaded = true;
+                return true;
+            }
+            
+            return false;
+        }
+    },
+    
+    getModule(name) {
+        return this.modules[name];
+    },
+    
+    isPostProcessingAvailable() {
+        return this.modules.EffectComposer && this.modules.RenderPass && this.modules.UnrealBloomPass;
+    }
+};
+
+// Initialize game with new module system
+async function initializeGame() {
+    const loadingElement = document.getElementById('loading');
+    
+    try {
+        const loaded = await ModuleLoader.loadModules();
+        
+        if (!loaded) {
+            throw new Error("Failed to load required modules");
+        }
+        
+        // Get required modules
+        const THREE = ModuleLoader.getModule('THREE');
+        
+        if (!THREE) {
+            throw new Error("THREE.js not available");
+        }
+        
+        // Initialize game with loaded modules
+        await initGame();
+        
+        // Hide loading screen
+        if (loadingElement) {
+            loadingElement.style.display = 'none';
+        }
+    } catch (error) {
+        console.error("Game initialization failed:", error);
+        showLoadingError(`Failed to initialize game: ${error.message}`);
+        
+        if (loadingElement) {
+            loadingElement.innerHTML = `
+                <h1>Loading Error</h1>
+                <p>Failed to load game resources. Please check your internet connection and refresh the page.</p>
+                <button onclick="location.reload()">Retry</button>
+            `;
+        }
+    }
+}
+
+// Start initialization
+initializeGame();
+
 // Immediately log that the script file is loading
 console.log("Script.js loading...");
 
@@ -172,6 +302,9 @@ async function initGame() {
     try {
         console.log("Initializing game...");
         
+        // Get required modules
+        const THREE = ModuleLoader.getModule('THREE');
+        
         // Create scene
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000033);
@@ -183,92 +316,52 @@ async function initGame() {
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         
         // Create renderer
-        renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
+        renderer = new THREE.WebGLRenderer({ 
+            canvas: document.getElementById('game'), 
+            antialias: true 
+        });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
-        renderer.toneMapping = THREE.ACESFilmicToneMapping; // Better tone mapping
-        renderer.toneMappingExposure = 1.2; // Slightly brighter
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
         
-        // Set up post-processing with EffectComposer
-        setupPostProcessing();
+        // Set up post-processing if available
+        if (ModuleLoader.isPostProcessingAvailable()) {
+            setupPostProcessing();
+        } else {
+            console.log("Post-processing not available, using basic rendering");
+        }
         
         // Add ambient light
         const ambientLight = new THREE.AmbientLight(0x333333);
         scene.add(ambientLight);
         
-        // Add directional light (moonlight)
-        const directionalLight = new THREE.DirectionalLight(0x6666ff, 0.5);
-        directionalLight.position.set(0, 50, 0);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 1024;
-        directionalLight.shadow.mapSize.height = 1024;
-        directionalLight.shadow.camera.near = 10;
-        directionalLight.shadow.camera.far = 200;
-        directionalLight.shadow.camera.left = -100;
-        directionalLight.shadow.camera.right = 100;
-        directionalLight.shadow.camera.top = 100;
-        directionalLight.shadow.camera.bottom = -100;
-        scene.add(directionalLight);
-
-        // Create game elements
-        createGround();
-        createCityscape();
-        createTallBuildings(); // Add 10 additional tall buildings
+        // Initialize game components
+        await Promise.all([
+            createCityscape(),
+            createPlayerShip(),
+            createDataFragments(),
+            createDrones(),
+            initAudio()
+        ]);
         
-        // Create the X-MACHINA hub
-        await createXMachinaHub();
-        
-        // Load saved spaceship quality level or default to 1
-        const savedQualityLevel = parseInt(localStorage.getItem('spaceshipQualityLevel') || '1', 10);
-        createPlayerShip(savedQualityLevel);
-        
-        createDataFragments();
-        createDrones();
-        
-        // Add accent lighting to the scene
-        createAccentLights();
-        
-        // Add neon signs
-        createNeonSigns();
-        
-        // Create UI elements - do this first, before setting up event listeners
+        // Set up UI elements
         createHealthBar();
         createDebugPanel();
         createQuoteDisplay();
         
-        // Initialize projectile pool
-        initProjectilePool();
-        
-        // Initialize explosion pool
-        initExplosionPool();
-        
-        // Initialize drone pool
-        initDronePool();
-        
-        // Initialize audio
-        initAudio();
-        
         // Set up event listeners
         setupEventListeners();
         
-        // Set initial game state
-        setGameState('start');
-        
-        // Start animation loop
-        lastFrameTime = performance.now();
+        // Start the game loop
+        setGameState('playing');
         animate();
-        
-        // Hide loading screen
-        const loadingElement = document.getElementById('loading');
-        if (loadingElement) {
-            loadingElement.style.display = 'none';
-        }
         
         console.log("Game initialization complete");
     } catch (error) {
         console.error("Game initialization failed:", error);
-        showLoadingError(error.message);
+        showLoadingError(`Game initialization failed: ${error.message}`);
     }
 }
 
@@ -3090,13 +3183,17 @@ function updateDrones() {
 
 // Set up post-processing effects
 function setupPostProcessing() {
-    // Check if EffectComposer and other modules are loaded
+    try {
+        const THREE = ModuleLoader.getModule('THREE');
+        const EffectComposer = ModuleLoader.getModule('EffectComposer');
+        const RenderPass = ModuleLoader.getModule('RenderPass');
+        const UnrealBloomPass = ModuleLoader.getModule('UnrealBloomPass');
+        
         if (!EffectComposer || !RenderPass || !UnrealBloomPass) {
-        console.warn("Post-processing modules not loaded yet. Skipping post-processing setup.");
+            console.warn("Post-processing modules not available");
             return;
         }
         
-    try {
         // Create composer
         composer = new EffectComposer(renderer);
         
@@ -3104,25 +3201,23 @@ function setupPostProcessing() {
         const renderPass = new RenderPass(scene, camera);
         composer.addPass(renderPass);
         
-        // Add bloom pass for glow effects
-            const bloomParams = {
-            threshold: 0.25,
-            strength: 0.8,
-            radius: 0.5
-        };
-            bloomPass = new UnrealBloomPass(
-                new THREE.Vector2(window.innerWidth, window.innerHeight),
-                bloomParams.strength,
-                bloomParams.radius,
-                bloomParams.threshold
-            );
-            composer.addPass(bloomPass);
-            
+        // Add bloom pass with optimized settings
+        const bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            1.5,  // Bloom strength
+            0.4,  // Radius
+            0.85  // Threshold
+        );
+        composer.addPass(bloomPass);
+        
+        // Store bloom pass for later adjustments
+        bloomPass = bloomPass;
+        
         console.log("Post-processing setup complete");
     } catch (error) {
         console.error("Error setting up post-processing:", error);
-        // Fallback to standard renderer if post-processing fails
         composer = null;
+        bloomPass = null;
     }
 }
 
