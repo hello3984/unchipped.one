@@ -1,6 +1,123 @@
 // Debug log to verify script loading and changes
 console.log('Script loaded with new changes - ' + new Date().toISOString());
 
+// Mobile detection - moved to global scope
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+console.log('Device detection:', isMobile ? 'Mobile' : 'Desktop');
+
+// Mobile-specific variables
+const mobileControls = {
+    touchStartX: 0,
+    touchStartY: 0,
+    isTouching: false,
+    touchControls: {
+        forward: false,
+        backward: false,
+        left: false,
+        right: false,
+        up: false,
+        down: false
+    }
+};
+
+// Mobile initialization function
+function initializeMobileControls() {
+    if (!isMobile) return;
+    
+    try {
+        console.log('Initializing mobile controls');
+        
+        // Touch event listeners
+        document.addEventListener('touchstart', handleTouchStart, { passive: false });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd, { passive: false });
+        
+        // Create mobile fire button
+        const fireButton = document.createElement('button');
+        fireButton.id = 'mobile-fire-button';
+        fireButton.innerHTML = 'FIRE';
+        fireButton.style.cssText = `
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            padding: 15px 30px;
+            background-color: rgba(255, 0, 0, 0.5);
+            border: 2px solid #ff0000;
+            color: #ffffff;
+            border-radius: 25px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2em;
+            z-index: 1000;
+            touch-action: manipulation;
+        `;
+        
+        fireButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            fireProjectile();
+        });
+        
+        document.body.appendChild(fireButton);
+        console.log('Mobile controls initialized successfully');
+    } catch (error) {
+        console.error('Failed to initialize mobile controls:', error);
+        showLoadingError('Mobile controls initialization failed: ' + error.message);
+    }
+}
+
+// Touch event handlers
+function handleTouchStart(e) {
+    if (!isMobile) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    mobileControls.touchStartX = touch.clientX;
+    mobileControls.touchStartY = touch.clientY;
+    mobileControls.isTouching = true;
+    console.log('Touch start detected:', { x: touch.clientX, y: touch.clientY });
+}
+
+function handleTouchMove(e) {
+    if (!isMobile || !mobileControls.isTouching) return;
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const diffX = touch.clientX - mobileControls.touchStartX;
+    const diffY = touch.clientY - mobileControls.touchStartY;
+    const sensitivity = 30;
+    
+    // Reset all touch controls
+    Object.keys(mobileControls.touchControls).forEach(key => mobileControls.touchControls[key] = false);
+    
+    // Determine direction based on touch movement
+    if (Math.abs(diffX) > sensitivity || Math.abs(diffY) > sensitivity) {
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+            mobileControls.touchControls.left = diffX < 0;
+            mobileControls.touchControls.right = diffX > 0;
+        } else {
+            mobileControls.touchControls.forward = diffY < 0;
+            mobileControls.touchControls.backward = diffY > 0;
+        }
+    }
+    
+    // Update movement variables
+    moveForward = mobileControls.touchControls.forward;
+    moveBackward = mobileControls.touchControls.backward;
+    moveLeft = mobileControls.touchControls.left;
+    moveRight = mobileControls.touchControls.right;
+}
+
+function handleTouchEnd(e) {
+    if (!isMobile) return;
+    e.preventDefault();
+    mobileControls.isTouching = false;
+    
+    // Reset all movement
+    moveForward = false;
+    moveBackward = false;
+    moveLeft = false;
+    moveRight = false;
+    Object.keys(mobileControls.touchControls).forEach(key => mobileControls.touchControls[key] = false);
+}
+
 // Module loading state management
 const ModuleLoader = {
     modules: {},
@@ -105,6 +222,11 @@ async function initializeGame() {
         
         if (!THREE) {
             throw new Error("THREE.js not available");
+        }
+        
+        // Initialize mobile controls if on mobile device
+        if (isMobile) {
+            await initializeMobileControls();
         }
         
         // Initialize game with loaded modules
@@ -301,6 +423,11 @@ const DATA_QUOTES = [
 async function initGame() {
     try {
         console.log("Initializing game...");
+        
+        // Initialize mobile controls if on mobile device
+        if (isMobile) {
+            await initializeMobileControls();
+        }
         
         // Get required modules
         const THREE = ModuleLoader.getModule('THREE');
