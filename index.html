@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -614,179 +614,6 @@
             border: 2px solid #1DA1F2;
             box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
         }
-        
-        /* Mobile-specific styles */
-        @media screen and (max-width: 768px) {
-            #left-controls-panel {
-                position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                top: auto;
-                width: 90%;
-                max-width: 400px;
-                background-color: rgba(0, 0, 33, 0.9);
-                padding: 10px;
-                z-index: 1000;
-            }
-            
-            #flight-indicators {
-                top: 10px;
-                right: 10px;
-                width: 100px;
-                font-size: 0.9em;
-            }
-            
-            .control-item {
-                margin-bottom: 5px;
-            }
-            
-            .key {
-                padding: 4px 8px;
-                font-size: 0.9em;
-            }
-            
-            #score-display {
-                top: 10px;
-                right: 10px;
-                font-size: 18px;
-                padding: 5px 10px;
-            }
-            
-            #health-bar-container {
-                top: 10px;
-                left: 10px;
-                width: 150px;
-                height: 15px;
-            }
-            
-            .game-screen button {
-                padding: 8px 16px;
-                font-size: 1em;
-                margin: 5px;
-            }
-            
-            .game-screen h1 {
-                font-size: 2em;
-                text-align: center;
-                padding: 0 10px;
-            }
-            
-            .game-screen p {
-                font-size: 1.2em;
-                text-align: center;
-                padding: 0 10px;
-            }
-            
-            #quote-display {
-                bottom: 80px;
-                font-size: 0.9em;
-                padding: 0 10px;
-            }
-            
-            .button-container {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .button-container button {
-                width: 80%;
-                margin: 5px 0;
-            }
-        }
-        
-        /* Mobile-specific UI elements */
-        .mobile-controls {
-            display: none;  /* Hidden by default, shown only on mobile */
-        }
-        
-        #mobile-joystick-container {
-            position: fixed;
-            bottom: 100px;
-            left: 50px;
-            width: 150px;
-            height: 150px;
-            background: rgba(0, 255, 255, 0.1);
-            border: 2px solid #00ffff;
-            border-radius: 50%;
-            touch-action: none;
-            z-index: 1000;
-        }
-        
-        #mobile-joystick-knob {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            background: rgba(0, 255, 255, 0.3);
-            border: 2px solid #00ffff;
-            border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-        }
-        
-        .mobile-button {
-            position: fixed;
-            padding: 20px;
-            background: rgba(0, 255, 255, 0.2);
-            border: 2px solid #00ffff;
-            border-radius: 50%;
-            color: #00ffff;
-            font-family: 'Orbitron', sans-serif;
-            touch-action: none;
-            z-index: 1000;
-        }
-        
-        #mobile-fire-button {
-            bottom: 100px;
-            right: 50px;
-            width: 80px;
-            height: 80px;
-            background: rgba(255, 0, 0, 0.2);
-            border-color: #ff0000;
-        }
-        
-        #mobile-camera-button {
-            bottom: 200px;
-            right: 50px;
-            width: 60px;
-            height: 60px;
-        }
-        
-        #mobile-pause-button {
-            top: 20px;
-            right: 20px;
-            width: 40px;
-            height: 40px;
-        }
-        
-        .mobile-indicator {
-            position: fixed;
-            background: rgba(0, 0, 33, 0.7);
-            border: 1px solid #00ffff;
-            border-radius: 5px;
-            padding: 5px 10px;
-            color: #00ffff;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 14px;
-            z-index: 1000;
-        }
-        
-        /* Hide desktop controls on mobile */
-        @media screen and (max-width: 768px) {
-            .desktop-controls {
-                display: none;
-            }
-            
-            .mobile-controls {
-                display: block;
-            }
-            
-            #left-controls-panel {
-                display: none;
-            }
-        }
     </style>
 </head>
 <body>
@@ -857,7 +684,7 @@
     <div id="debug-panel"></div>
     <div id="controls-display">WASD: Move ship | V: Toggle camera view</div>
     
-    <div id="left-controls-panel" class="desktop-controls">
+    <div id="left-controls-panel">
         <h3>Controls</h3>
         <div class="control-item">
             <span class="key">W</span>
@@ -927,29 +754,6 @@
             <div class="speed-bar-container">
                 <div id="speed-bar" class="speed-bar"></div>
             </div>
-        </div>
-    </div>
-    
-    <!-- Mobile UI Elements -->
-    <div class="mobile-controls">
-        <div id="mobile-joystick-container">
-            <div id="mobile-joystick-knob"></div>
-        </div>
-        
-        <button id="mobile-fire-button" class="mobile-button">FIRE</button>
-        <button id="mobile-camera-button" class="mobile-button">CAM</button>
-        <button id="mobile-pause-button" class="mobile-button">II</button>
-        
-        <div class="mobile-indicator" style="top: 20px; left: 20px;">
-            HEALTH: <span id="mobile-health">100%</span>
-        </div>
-        
-        <div class="mobile-indicator" style="top: 50px; left: 20px;">
-            SPEED: <span id="mobile-speed">0</span>
-        </div>
-        
-        <div class="mobile-indicator" style="top: 80px; left: 20px;">
-            ALT: <span id="mobile-altitude">0</span>
         </div>
     </div>
     

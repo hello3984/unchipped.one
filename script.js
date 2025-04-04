@@ -1,149 +1,6 @@
 // Debug log to verify script loading and changes
 console.log('Script loaded with new changes - ' + new Date().toISOString());
 
-// Mobile detection - moved to global scope
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-console.log('Device detection:', isMobile ? 'Mobile' : 'Desktop');
-
-// Mobile-specific variables
-let mobileControls = {
-    joystick: {
-        container: null,
-        knob: null,
-        startX: 0,
-        startY: 0,
-        moveX: 0,
-        moveY: 0,
-        active: false
-    },
-    buttons: {
-        fire: null,
-        camera: null,
-        pause: null
-    }
-};
-
-// Mobile initialization function
-function initializeMobileControls() {
-    if (!isMobile) return;
-    
-    // Initialize joystick elements
-    mobileControls.joystick.container = document.getElementById('mobile-joystick-container');
-    mobileControls.joystick.knob = document.getElementById('mobile-joystick-knob');
-
-    // Initialize buttons
-    mobileControls.buttons.fire = document.getElementById('mobile-fire-button');
-    mobileControls.buttons.camera = document.getElementById('mobile-camera-button');
-    mobileControls.buttons.pause = document.getElementById('mobile-pause-button');
-
-    // Joystick touch events
-    mobileControls.joystick.container.addEventListener('touchstart', handleJoystickStart);
-    mobileControls.joystick.container.addEventListener('touchmove', handleJoystickMove);
-    mobileControls.joystick.container.addEventListener('touchend', handleJoystickEnd);
-
-    // Button touch events
-    mobileControls.buttons.fire.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        fireProjectile();
-    });
-
-    mobileControls.buttons.camera.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        toggleCameraView();
-    });
-
-    mobileControls.buttons.pause.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        setGameState(gameState === 'playing' ? 'paused' : 'playing');
-    });
-}
-
-function handleJoystickStart(e) {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const rect = mobileControls.joystick.container.getBoundingClientRect();
-    
-    mobileControls.joystick.active = true;
-    mobileControls.joystick.startX = touch.clientX - rect.left;
-    mobileControls.joystick.startY = touch.clientY - rect.top;
-}
-
-function handleJoystickMove(e) {
-    e.preventDefault();
-    if (!mobileControls.joystick.active) return;
-
-    const touch = e.touches[0];
-    const rect = mobileControls.joystick.container.getBoundingClientRect();
-    
-    // Calculate joystick movement
-    const currentX = touch.clientX - rect.left;
-    const currentY = touch.clientY - rect.top;
-    
-    // Calculate the distance from center
-    const deltaX = currentX - rect.width / 2;
-    const deltaY = currentY - rect.height / 2;
-    const distance = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), rect.width / 2);
-    const angle = Math.atan2(deltaY, deltaX);
-    
-    // Update knob position
-    const knobX = Math.cos(angle) * distance + rect.width / 2;
-    const knobY = Math.sin(angle) * distance + rect.height / 2;
-    
-    mobileControls.joystick.knob.style.left = `${knobX}px`;
-    mobileControls.joystick.knob.style.top = `${knobY}px`;
-    
-    // Update movement values (-1 to 1)
-    mobileControls.joystick.moveX = (2 * distance * Math.cos(angle)) / rect.width;
-    mobileControls.joystick.moveY = (2 * distance * Math.sin(angle)) / rect.height;
-    
-    // Update ship movement
-    controls.moveForward = -mobileControls.joystick.moveY;
-    controls.moveRight = mobileControls.joystick.moveX;
-}
-
-function handleJoystickEnd(e) {
-    e.preventDefault();
-    mobileControls.joystick.active = false;
-    
-    // Reset knob position
-    mobileControls.joystick.knob.style.left = '50%';
-    mobileControls.joystick.knob.style.top = '50%';
-    
-    // Reset controls
-    mobileControls.joystick.moveX = 0;
-    mobileControls.joystick.moveY = 0;
-    controls.moveForward = 0;
-    controls.moveRight = 0;
-}
-
-function updateMobileIndicators() {
-    if (!isMobile) return;
-    
-    document.getElementById('mobile-health').textContent = `${Math.round(playerHealth)}%`;
-    document.getElementById('mobile-speed').textContent = `${Math.round(currentSpeed)} MPH`;
-    document.getElementById('mobile-altitude').textContent = `${Math.round(shipHeight)} FT`;
-}
-
-// Update the animate function to include mobile indicators
-function animate() {
-    // ... existing animation code ...
-    
-    if (isMobile) {
-        updateMobileIndicators();
-    }
-    
-    // ... rest of animation code ...
-}
-
-// Make sure to call initializeMobileControls after DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // ... existing initialization code ...
-    
-    if (isMobile) {
-        initializeMobileControls();
-    }
-});
-
 // Module loading state management
 const ModuleLoader = {
     modules: {},
@@ -248,11 +105,6 @@ async function initializeGame() {
         
         if (!THREE) {
             throw new Error("THREE.js not available");
-        }
-        
-        // Initialize mobile controls if on mobile device
-        if (isMobile) {
-            await initializeMobileControls();
         }
         
         // Initialize game with loaded modules
@@ -449,11 +301,6 @@ const DATA_QUOTES = [
 async function initGame() {
     try {
         console.log("Initializing game...");
-        
-        // Initialize mobile controls if on mobile device
-        if (isMobile) {
-            await initializeMobileControls();
-        }
         
         // Get required modules
         const THREE = ModuleLoader.getModule('THREE');
@@ -2403,106 +2250,6 @@ function setupEventListeners() {
     
     // Window resize event
     window.addEventListener('resize', onWindowResize);
-    
-    // Add mobile detection
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    // Mobile touch controls
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let isTouching = false;
-    let touchControls = {
-        forward: false,
-        backward: false,
-        left: false,
-        right: false,
-        up: false,
-        down: false
-    };
-    
-    if (isMobile) {
-        // Touch controls
-        document.addEventListener('touchstart', handleTouchStart, false);
-        document.addEventListener('touchmove', handleTouchMove, false);
-        document.addEventListener('touchend', handleTouchEnd, false);
-        
-        // Add mobile fire button
-        const fireButton = document.createElement('button');
-        fireButton.id = 'mobile-fire-button';
-        fireButton.innerHTML = 'FIRE';
-        fireButton.style.cssText = `
-            position: fixed;
-            bottom: 100px;
-            right: 20px;
-            padding: 15px 30px;
-            background-color: rgba(255, 0, 0, 0.5);
-            border: 2px solid #ff0000;
-            color: #ffffff;
-            border-radius: 25px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.2em;
-            z-index: 1000;
-            touch-action: manipulation;
-        `;
-        document.body.appendChild(fireButton);
-        
-        fireButton.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            fireProjectile();
-        });
-    }
-}
-
-function handleTouchStart(e) {
-    e.preventDefault();
-    const touch = e.touches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-    isTouching = true;
-}
-
-function handleTouchMove(e) {
-    if (!isTouching) return;
-    e.preventDefault();
-    
-    const touch = e.touches[0];
-    const diffX = touch.clientX - touchStartX;
-    const diffY = touch.clientY - touchStartY;
-    const sensitivity = 30; // Adjust this value to change touch sensitivity
-    
-    // Reset all touch controls
-    Object.keys(touchControls).forEach(key => touchControls[key] = false);
-    
-    // Determine direction based on touch movement
-    if (Math.abs(diffX) > sensitivity || Math.abs(diffY) > sensitivity) {
-        if (Math.abs(diffX) > Math.abs(diffY)) {
-            // Horizontal movement
-            touchControls.left = diffX < 0;
-            touchControls.right = diffX > 0;
-        } else {
-            // Vertical movement
-            touchControls.forward = diffY < 0;
-            touchControls.backward = diffY > 0;
-        }
-    }
-    
-    // Update movement variables
-    moveForward = touchControls.forward;
-    moveBackward = touchControls.backward;
-    moveLeft = touchControls.left;
-    moveRight = touchControls.right;
-}
-
-function handleTouchEnd(e) {
-    e.preventDefault();
-    isTouching = false;
-    
-    // Reset all movement
-    moveForward = false;
-    moveBackward = false;
-    moveLeft = false;
-    moveRight = false;
-    Object.keys(touchControls).forEach(key => touchControls[key] = false);
 }
 
 // Helper function to handle keyboard events
@@ -3567,18 +3314,6 @@ function animate() {
             composer.render();
         } else {
         renderer.render(scene, camera);
-    }
-    
-    // Apply touch controls if on mobile
-    if (isMobile && isTouching) {
-        if (touchControls.forward) velocity.z -= SHIP_SPEED;
-        if (touchControls.backward) velocity.z += SHIP_SPEED;
-        if (touchControls.left) velocity.x -= SHIP_SPEED;
-        if (touchControls.right) velocity.x += SHIP_SPEED;
-    }
-    
-    if (isMobile) {
-        updateMobileIndicators();
     }
 }
 
