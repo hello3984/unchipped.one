@@ -2250,6 +2250,106 @@ function setupEventListeners() {
     
     // Window resize event
     window.addEventListener('resize', onWindowResize);
+    
+    // Add mobile detection
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // Mobile touch controls
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isTouching = false;
+    let touchControls = {
+        forward: false,
+        backward: false,
+        left: false,
+        right: false,
+        up: false,
+        down: false
+    };
+    
+    if (isMobile) {
+        // Touch controls
+        document.addEventListener('touchstart', handleTouchStart, false);
+        document.addEventListener('touchmove', handleTouchMove, false);
+        document.addEventListener('touchend', handleTouchEnd, false);
+        
+        // Add mobile fire button
+        const fireButton = document.createElement('button');
+        fireButton.id = 'mobile-fire-button';
+        fireButton.innerHTML = 'FIRE';
+        fireButton.style.cssText = `
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            padding: 15px 30px;
+            background-color: rgba(255, 0, 0, 0.5);
+            border: 2px solid #ff0000;
+            color: #ffffff;
+            border-radius: 25px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2em;
+            z-index: 1000;
+            touch-action: manipulation;
+        `;
+        document.body.appendChild(fireButton);
+        
+        fireButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            fireProjectile();
+        });
+    }
+}
+
+function handleTouchStart(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    isTouching = true;
+}
+
+function handleTouchMove(e) {
+    if (!isTouching) return;
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const diffX = touch.clientX - touchStartX;
+    const diffY = touch.clientY - touchStartY;
+    const sensitivity = 30; // Adjust this value to change touch sensitivity
+    
+    // Reset all touch controls
+    Object.keys(touchControls).forEach(key => touchControls[key] = false);
+    
+    // Determine direction based on touch movement
+    if (Math.abs(diffX) > sensitivity || Math.abs(diffY) > sensitivity) {
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+            // Horizontal movement
+            touchControls.left = diffX < 0;
+            touchControls.right = diffX > 0;
+        } else {
+            // Vertical movement
+            touchControls.forward = diffY < 0;
+            touchControls.backward = diffY > 0;
+        }
+    }
+    
+    // Update movement variables
+    moveForward = touchControls.forward;
+    moveBackward = touchControls.backward;
+    moveLeft = touchControls.left;
+    moveRight = touchControls.right;
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    isTouching = false;
+    
+    // Reset all movement
+    moveForward = false;
+    moveBackward = false;
+    moveLeft = false;
+    moveRight = false;
+    Object.keys(touchControls).forEach(key => touchControls[key] = false);
 }
 
 // Helper function to handle keyboard events
@@ -3314,6 +3414,14 @@ function animate() {
             composer.render();
         } else {
         renderer.render(scene, camera);
+    }
+    
+    // Apply touch controls if on mobile
+    if (isMobile && isTouching) {
+        if (touchControls.forward) velocity.z -= SHIP_SPEED;
+        if (touchControls.backward) velocity.z += SHIP_SPEED;
+        if (touchControls.left) velocity.x -= SHIP_SPEED;
+        if (touchControls.right) velocity.x += SHIP_SPEED;
     }
 }
 

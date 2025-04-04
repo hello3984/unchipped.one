@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -613,6 +613,86 @@
             color: #1DA1F2;
             border: 2px solid #1DA1F2;
             box-shadow: 0 0 20px rgba(29, 161, 242, 0.5);
+        }
+        
+        /* Mobile-specific styles */
+        @media screen and (max-width: 768px) {
+            #left-controls-panel {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                top: auto;
+                width: 90%;
+                max-width: 400px;
+                background-color: rgba(0, 0, 33, 0.9);
+                padding: 10px;
+                z-index: 1000;
+            }
+            
+            #flight-indicators {
+                top: 10px;
+                right: 10px;
+                width: 100px;
+                font-size: 0.9em;
+            }
+            
+            .control-item {
+                margin-bottom: 5px;
+            }
+            
+            .key {
+                padding: 4px 8px;
+                font-size: 0.9em;
+            }
+            
+            #score-display {
+                top: 10px;
+                right: 10px;
+                font-size: 18px;
+                padding: 5px 10px;
+            }
+            
+            #health-bar-container {
+                top: 10px;
+                left: 10px;
+                width: 150px;
+                height: 15px;
+            }
+            
+            .game-screen button {
+                padding: 8px 16px;
+                font-size: 1em;
+                margin: 5px;
+            }
+            
+            .game-screen h1 {
+                font-size: 2em;
+                text-align: center;
+                padding: 0 10px;
+            }
+            
+            .game-screen p {
+                font-size: 1.2em;
+                text-align: center;
+                padding: 0 10px;
+            }
+            
+            #quote-display {
+                bottom: 80px;
+                font-size: 0.9em;
+                padding: 0 10px;
+            }
+            
+            .button-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .button-container button {
+                width: 80%;
+                margin: 5px 0;
+            }
         }
     </style>
 </head>
