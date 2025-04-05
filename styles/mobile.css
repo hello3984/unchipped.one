@@ -9,6 +9,40 @@
         -webkit-user-select: none;
         user-select: none;
         overscroll-behavior: none;
+        font-size: 14px; /* Base font size for mobile */
+        -webkit-text-size-adjust: none;
+    }
+    
+    /* Text size adjustments */
+    .game-screen h1 {
+        font-size: 2em !important;
+    }
+    
+    .game-screen p {
+        font-size: 1.2em !important;
+    }
+    
+    .game-screen button {
+        font-size: 1em !important;
+        padding: 12px 24px !important;
+        min-width: 120px !important;
+    }
+    
+    #start-screen h1 {
+        font-size: 2.5em !important;
+    }
+    
+    #start-screen p {
+        font-size: 1.2em !important;
+    }
+    
+    #start-screen button {
+        font-size: 1em !important;
+        padding: 12px 24px !important;
+    }
+    
+    .touch-button {
+        font-size: 0.9em !important;
     }
     
     /* Adjust game UI for mobile */
