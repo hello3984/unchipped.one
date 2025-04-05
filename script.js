@@ -146,6 +146,7 @@ console.log("THREE imported:", typeof THREE);
 
 // Try importing each module separately with error handling
 let EffectComposer, RenderPass, UnrealBloomPass;
+let gameInitialized = false;
 
 try {
     // First try dynamic import
@@ -160,7 +161,10 @@ try {
         UnrealBloomPass = bloomPassModule.UnrealBloomPass;
         
         // Initialize the game once imports are complete
+        if (!gameInitialized) {
+            gameInitialized = true;
             initGame();
+        }
     }).catch(error => {
         console.error("Error loading modules dynamically:", error);
         
@@ -171,23 +175,22 @@ try {
             RenderPass = window.THREE.RenderPass;
             UnrealBloomPass = window.THREE.UnrealBloomPass;
             
-            if (EffectComposer && RenderPass && UnrealBloomPass) {
-                console.log("Found postprocessing modules in global scope");
-                initGame();
-            } else {
-                // Initialize without postprocessing
-                console.warn("Postprocessing modules not available, initializing without effects");
+            if (!gameInitialized) {
+                gameInitialized = true;
                 initGame();
             }
         } else {
             console.error("THREE not found in global scope");
             showLoadingError("THREE.js not found. Check your network connection and try again.");
         }
-        });
+    });
 } catch (error) {
     console.error("Critical error setting up module imports:", error);
     showLoadingError(`Critical error: ${error.message}`);
 }
+
+// Remove direct call to initializeGame
+// initializeGame(); -- removed this line
 
 // Function to show loading error
 function showLoadingError(message) {
@@ -2210,17 +2213,29 @@ gameBridge.registerRestartGame(restartGame);
 
 // Set up event listeners for player controls and UI
 function setupEventListeners() {
-    console.log("Setting up event listeners");
-    
     // Remove any existing listeners first
+    window.removeEventListener('resize', onWindowResize);
+    document.removeEventListener('keydown', onKeyDown);
+    document.removeEventListener('keyup', onKeyUp);
+    
+    // Add new listeners
+    window.addEventListener('resize', onWindowResize);
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+    
+    // Mobile touch controls
+    if (isMobileDevice()) {
+        const touchController = new TouchController();
+        touchController.initialize();
+    }
+    
+    // UI button events
     const startButton = document.getElementById('start-button');
     const resumeButton = document.getElementById('resume-button');
     const restartButton = document.getElementById('restart-button');
     
     if (startButton) {
-        const newStartButton = startButton.cloneNode(true);
-        startButton.parentNode.replaceChild(newStartButton, startButton);
-        newStartButton.addEventListener('click', function() {
+        startButton.addEventListener('click', () => {
             if (gameState === 'start') {
                 setGameState('playing');
             }
@@ -2228,9 +2243,7 @@ function setupEventListeners() {
     }
     
     if (resumeButton) {
-        const newResumeButton = resumeButton.cloneNode(true);
-        resumeButton.parentNode.replaceChild(newResumeButton, resumeButton);
-        newResumeButton.addEventListener('click', function() {
+        resumeButton.addEventListener('click', () => {
             if (gameState === 'paused') {
                 setGameState('playing');
             }
@@ -2238,26 +2251,12 @@ function setupEventListeners() {
     }
     
     if (restartButton) {
-        const newRestartButton = restartButton.cloneNode(true);
-        restartButton.parentNode.replaceChild(newRestartButton, restartButton);
-        newRestartButton.addEventListener('click', function() {
+        restartButton.addEventListener('click', () => {
             if (gameState === 'gameover') {
                 restartGame();
             }
         });
     }
-    
-    // Keyboard events
-    document.addEventListener('keydown', function(event) {
-        handleKeyEvent(event, true);
-    });
-    
-    document.addEventListener('keyup', function(event) {
-        handleKeyEvent(event, false);
-    });
-    
-    // Window resize event
-    window.addEventListener('resize', onWindowResize);
 }
 
 // Helper function to handle keyboard events
@@ -4910,4 +4909,13 @@ function createTallBuildings() {
     }
     
     console.log("Added tall buildings. Total building count:", buildings.length);
+}
+
+// Key event handlers
+function onKeyDown(event) {
+    handleKeyEvent(event, true);
+}
+
+function onKeyUp(event) {
+    handleKeyEvent(event, false);
 }
