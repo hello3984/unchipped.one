@@ -372,25 +372,6 @@ function isMobileDevice() {
 }
 
 // Update window resize handler for mobile
-function onWindowResize() {
-    if (!camera || !renderer) {
-        console.warn("Camera or renderer not initialized yet, skipping resize");
-        return;
-    }
-    
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-    
-    renderer.setSize(width, height);
-    
-    // Update post-processing if available and not on mobile
-    if (composer && !isMobileDevice()) {
-        composer.setSize(width, height);
-    }
-}
 
 // Create stars in the night sky
 function createStars() {
@@ -3249,24 +3230,6 @@ function setupPostProcessing() {
 }
 
 // Update window size and camera/renderer settings when window is resized
-function onWindowResize() {
-    if (!camera || !renderer) {
-        console.warn("Camera or renderer not initialized yet, skipping resize");
-        return;
-    }
-    
-    // Update camera aspect ratio
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    
-    // Update renderer size
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    
-    // Update composer size if it exists
-    if (composer) {
-        composer.setSize(window.innerWidth, window.innerHeight);
-    }
-}
 
 // Animation loop
 function animate() {
