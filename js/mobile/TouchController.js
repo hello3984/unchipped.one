@@ -80,27 +80,29 @@ export class TouchController {
             padding: 20px;
             z-index: 1000;
             pointer-events: none;
+            transform: scale(0.9); /* Slightly reduce size of controls */
         `;
         
         // Create joystick
         const joystickContainer = document.createElement('div');
         joystickContainer.id = 'joystick-area';
         joystickContainer.style.cssText = `
-            width: 120px;
-            height: 120px;
+            width: 100px;
+            height: 100px;
             background: rgba(0, 255, 255, 0.1);
             border: 2px solid rgba(0, 255, 255, 0.3);
             border-radius: 50%;
             position: relative;
             pointer-events: auto;
             touch-action: none;
+            margin-left: 10px;
         `;
         
         // Joystick indicator
         const indicator = document.createElement('div');
         indicator.style.cssText = `
-            width: 40px;
-            height: 40px;
+            width: 35px;
+            height: 35px;
             background: rgba(0, 255, 255, 0.2);
             border: 2px solid rgba(0, 255, 255, 0.5);
             border-radius: 50%;
