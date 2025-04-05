@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=0.86, maximum-scale=0.86, minimum-scale=0.86, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -48,6 +48,46 @@
             font-family: 'Arial', sans-serif;
             color: #00ffff;
             background-color: #000033; /* Dark background in case of loading issues */
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+        
+        @media screen and (max-width: 768px) {
+            html {
+                font-size: 14px !important;
+            }
+            
+            .game-screen h1 {
+                font-size: 2em !important;
+            }
+            
+            .game-screen p {
+                font-size: 1.2em !important;
+                padding: 0 20px;
+                text-align: center;
+            }
+            
+            .game-screen button {
+                font-size: 1.1em !important;
+                padding: 15px 30px !important;
+                margin: 10px !important;
+            }
+            
+            #score-display {
+                font-size: 18px !important;
+                top: 10px !important;
+                right: 10px !important;
+            }
+            
+            #health-bar-container {
+                width: 150px !important;
+                top: 10px !important;
+                left: 10px !important;
+            }
+            
+            .touch-button {
+                transform: scale(0.8) !important;
+            }
         }
         
         #loading {
