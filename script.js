@@ -1,6 +1,10 @@
 // Debug log to verify script loading and changes
 console.log('Script loaded with new changes - ' + new Date().toISOString());
 
+// Mobile device detection
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+console.log('Device detection - isMobile:', isMobile);
+
 // Module loading state management
 const ModuleLoader = {
     modules: {},
