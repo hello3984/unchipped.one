@@ -272,6 +272,8 @@ const WEAPON_COOLDOWN_TIME = 300; // Reduced for better responsiveness
 const ENERGY_CONDUIT_WIDTH = 30; // Width of the energy conduit
 const PROJECTILE_SPREAD = 0.1; // New constant for projectile spread
 const PROJECTILE_HITBOX_RADIUS = 8.0; // Increased hitbox for better hit detection
+const PARTICLE_COUNT = 100; // Base particle count for effects
+const MAX_BUILDINGS = BUILDING_COUNT; // Maximum number of buildings
 
 // Quotes displayed when collecting data fragments
 const DATA_QUOTES = [
@@ -321,8 +323,9 @@ async function initGame() {
         if (isMobileDevice()) {
             renderer.setPixelRatio(1);
             renderer.shadowMap.enabled = false;
-            PARTICLE_COUNT = Math.floor(PARTICLE_COUNT * 0.5);
-            MAX_BUILDINGS = Math.floor(MAX_BUILDINGS * 0.7);
+            const mobileParticleCount = Math.floor(PARTICLE_COUNT * 0.5);
+            const mobileBuildingCount = Math.floor(MAX_BUILDINGS * 0.7);
+            console.log(`Mobile optimization: Particles: ${mobileParticleCount}, Buildings: ${mobileBuildingCount}`);
         }
         
         // Initialize scene and camera
@@ -2768,24 +2771,24 @@ function initExplosionPool() {
         const explosionTexture = createExplosionParticleTexture();
         
         explosionPool = [];
-        const poolSize = 10;
+        const poolSize = isMobileDevice() ? 5 : 10;
         
         for (let i = 0; i < poolSize; i++) {
             // Create simple particle system for each explosion
-            const particleCount = 30;
-        const geometry = new THREE.BufferGeometry();
+            const particleCount = isMobileDevice() ? Math.floor(PARTICLE_COUNT * 0.3) : Math.floor(PARTICLE_COUNT * 0.6);
+            const geometry = new THREE.BufferGeometry();
         
             // Create position, color, and size arrays
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
-        const sizes = new Float32Array(particleCount);
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
         
             // Initialize positions randomly
-        for (let j = 0; j < particleCount; j++) {
-            positions[j * 3] = 0;
-            positions[j * 3 + 1] = 0;
-            positions[j * 3 + 2] = 0;
-            
+            for (let j = 0; j < particleCount; j++) {
+                positions[j * 3] = 0;
+                positions[j * 3 + 1] = 0;
+                positions[j * 3 + 2] = 0;
+                
                 colors[j * 3] = 1.0;     // R
                 colors[j * 3 + 1] = 0.5;  // G
                 colors[j * 3 + 2] = 0.2;  // B
@@ -2794,37 +2797,37 @@ function initExplosionPool() {
             }
             
             // Set attributes
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
         
             // Create material with texture
-        const material = new THREE.PointsMaterial({
+            const material = new THREE.PointsMaterial({
                 size: 1.0,
                 map: explosionTexture,
-            blending: THREE.AdditiveBlending,
-            transparent: true,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
                 vertexColors: true,
                 depthWrite: false
-        });
+            });
         
             // Create points system
-        const particles = new THREE.Points(geometry, material);
+            const particles = new THREE.Points(geometry, material);
             particles.visible = false;
-        scene.add(particles);
+            scene.add(particles);
         
             // Store in pool
-        explosionPool.push({
-            particles: particles,
-            geometry: geometry,
-            material: material,
+            explosionPool.push({
+                particles: particles,
+                geometry: geometry,
+                material: material,
                 velocities: Array(particleCount).fill(null),
-            particleCount: particleCount,
+                particleCount: particleCount,
                 active: false,
-            opacity: 0,
-            size: 0,
-            animationId: null
-        });
+                opacity: 0,
+                size: 0,
+                animationId: null
+            });
         }
         
         console.log("Explosion pool initialized with", poolSize, "explosions");
@@ -3557,7 +3560,7 @@ function createFireEmitter() {
         }
         
         // Create particles geometry
-        const particleCount = 30;
+        const particleCount = isMobileDevice() ? Math.floor(PARTICLE_COUNT * 0.5) : PARTICLE_COUNT;
         const particleGeometry = new THREE.BufferGeometry();
         
         // Arrays to store particle properties
