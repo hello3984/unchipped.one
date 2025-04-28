@@ -10,6 +10,10 @@ permissions:
   pages: write
   id-token: write
 
+# Force HTTPS
+env:
+  FORCE_HTTPS: true
+
 concurrency:
   group: "pages"
   cancel-in-progress: false
